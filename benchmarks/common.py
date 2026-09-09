@@ -55,6 +55,14 @@ def tokenize_line(line):
     return out
 
 
+def _fetch(url, zip_path):
+    """Download with a browser User-Agent (bare urllib gets Cloudflare-blocked)."""
+    import shutil
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req) as r, open(zip_path, "wb") as f:
+        shutil.copyfileobj(r, f)
+
+
 def ensure_wikitext2(data_dir=DATA_DIR):
     """Return paths to the three WikiText-2 token files, downloading if needed."""
     wt2 = os.path.join(data_dir, "wikitext-2")
@@ -69,13 +77,16 @@ def ensure_wikitext2(data_dir=DATA_DIR):
         for url in WT2_URLS:
             try:
                 print(f"  downloading {url} ...")
-                urllib.request.urlretrieve(url, zip_path)
+                _fetch(url, zip_path)
                 last_err = None
                 break
             except Exception as e:  # noqa: BLE001
                 last_err = e
         if last_err:
-            raise RuntimeError(f"Could not download WikiText-2: {last_err}")
+            raise RuntimeError(
+                f"Could not download WikiText-2: {last_err}\n"
+                f"Manual fallback:\n"
+                f"  curl -L -A 'Mozilla/5.0' -o {zip_path} {WT2_URLS[0]}")
     import zipfile
     with zipfile.ZipFile(zip_path) as zf:
         zf.extractall(data_dir)
