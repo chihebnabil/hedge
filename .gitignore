@@ -1,0 +1,15 @@
+__pycache__
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# large data & artifacts (rebuild with the scripts; see README)
+data/
+benchmarks/results/*.pkl
+benchmarks/results/*.npz
+benchmarks/results/*.npy
+benchmarks/results/*.pt
+*.pt
+opencode/
+.opencode/

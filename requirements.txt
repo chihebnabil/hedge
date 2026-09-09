@@ -1,0 +1,8 @@
+# Base model (BEAST v5): zero runtime dependencies — pure Python stdlib.
+colorama>=0.4          # optional; CLI/demo cosmetics only
+
+# Neural gate + GRU expert (gate_lm*.py, nn_expert.py)
+numpy>=1.26
+# CPU build is sufficient for everything in this repo:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2

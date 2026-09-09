@@ -1,0 +1,63 @@
+{
+  "corpus": "wikitext2",
+  "train_tokens": 1927034,
+  "valid_tokens": 201797,
+  "test_tokens": 226731,
+  "train_seconds": 4.975474996997946,
+  "raw_bytes": 23364784,
+  "zlib_bytes": 8788524,
+  "tune_cap_tokens": 30000,
+  "variants": {
+    "mkn": {
+      "variant": "mkn",
+      "best_params": {
+        "discount_scale": 1.15,
+        "zipf_prior_weight": 0.0,
+        "adaptive_prior": false,
+        "prior_mode": "zipf"
+      },
+      "valid_perplexity": 276.66313930591355,
+      "test_perplexity": 300.1677320317979,
+      "test_top1": 0.19231159674412596,
+      "test_top3": 0.3284113771018291,
+      "test_tokens": 216716,
+      "trials_run": 5,
+      "tune_seconds": 39.797730801998114,
+      "eval_seconds": 77.71427702800065
+    },
+    "witten_bell": {
+      "variant": "witten_bell",
+      "best_params": {
+        "discount_scale": 1.0,
+        "zipf_prior_weight": 0.0,
+        "adaptive_prior": false,
+        "prior_mode": "witten_bell"
+      },
+      "valid_perplexity": 298.0607263989213,
+      "test_perplexity": 321.11435750882737,
+      "test_top1": 0.18806179516048654,
+      "test_top3": 0.31914579449602243,
+      "test_tokens": 216716,
+      "trials_run": 1,
+      "tune_seconds": 7.897729200998583,
+      "eval_seconds": 74.67008887999691
+    },
+    "zipf_prior": {
+      "variant": "zipf_prior",
+      "best_params": {
+        "discount_scale": 1.15,
+        "zipf_prior_weight": 0.25,
+        "adaptive_prior": false,
+        "prior_mode": "zipf"
+      },
+      "valid_perplexity": 269.02107210366654,
+      "test_perplexity": 292.13840899184083,
+      "test_top1": 0.19239465475553258,
+      "test_top3": 0.3275300393141254,
+      "test_tokens": 216716,
+      "trials_run": 60,
+      "tune_seconds": 488.2268354700027,
+      "eval_seconds": 78.16806242600069
+    }
+  }
+}

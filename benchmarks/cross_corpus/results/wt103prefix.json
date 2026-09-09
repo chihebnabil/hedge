@@ -1,0 +1,63 @@
+{
+  "corpus": "wt103prefix",
+  "train_tokens": 8000047,
+  "valid_tokens": 60005,
+  "test_tokens": 60154,
+  "train_seconds": 26.54240216099788,
+  "raw_bytes": 81866367,
+  "zlib_bytes": 31918354,
+  "tune_cap_tokens": 10000,
+  "variants": {
+    "mkn": {
+      "variant": "mkn",
+      "best_params": {
+        "discount_scale": 1.15,
+        "zipf_prior_weight": 0.0,
+        "adaptive_prior": false,
+        "prior_mode": "zipf"
+      },
+      "valid_perplexity": 282.6497015352579,
+      "test_perplexity": 313.0545193039745,
+      "test_top1": 0.1998226734583891,
+      "test_top3": 0.32640253124945673,
+      "test_tokens": 57521,
+      "trials_run": 4,
+      "tune_seconds": 33.412154073997954,
+      "eval_seconds": 72.26291556399883
+    },
+    "witten_bell": {
+      "variant": "witten_bell",
+      "best_params": {
+        "discount_scale": 1.0,
+        "zipf_prior_weight": 0.0,
+        "adaptive_prior": false,
+        "prior_mode": "witten_bell"
+      },
+      "valid_perplexity": 298.7702017215374,
+      "test_perplexity": 329.01558214713214,
+      "test_top1": 0.19797986822204064,
+      "test_top3": 0.3235687835746945,
+      "test_tokens": 57521,
+      "trials_run": 1,
+      "tune_seconds": 8.366452499001753,
+      "eval_seconds": 71.49046272600026
+    },
+    "zipf_prior": {
+      "variant": "zipf_prior",
+      "best_params": {
+        "discount_scale": 1.0,
+        "zipf_prior_weight": 0.25,
+        "adaptive_prior": false,
+        "prior_mode": "zipf"
+      },
+      "valid_perplexity": 273.9212146224683,
+      "test_perplexity": 304.484977202122,
+      "test_top1": 0.20017037255958695,
+      "test_top3": 0.32739347368787053,
+      "test_tokens": 57521,
+      "trials_run": 40,
+      "tune_seconds": 329.5995996399979,
+      "eval_seconds": 71.49664469600248
+    }
+  }
+}

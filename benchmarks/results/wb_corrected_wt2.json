@@ -1,0 +1,13 @@
+{
+  "model": "Trigram Witten-Bell (textbook, corrected)",
+  "corpus": "wikitext2",
+  "train_tokens": 1927034,
+  "test_tokens": 217004,
+  "perplexity": 483.6388543875515,
+  "top1_accuracy": 0.157642255442296,
+  "top3_accuracy": 0.27396269193194595,
+  "train_seconds": 4.495974204997765,
+  "eval_seconds": 26.994731906001107,
+  "raw_bytes": 61728224,
+  "zlib_bytes": 14290964
+}
