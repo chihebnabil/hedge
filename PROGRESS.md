@@ -45,7 +45,10 @@ _Last updated: 2026-09-09 (session in progress)_
 - [x] Bug fixed: batch orientation (batch_first=True) + chunk-edge crashes
       (first launch learned from scrambled text ~35 min, crashed, no checkpoint
       saved — clean restart)
-- [ ] GRU training 6 epochs on WT-2 — **RUNNING (PID 17056, relaunched 2026-09-09)**
+- [ ] GRU training 6 epochs on WT-2 — **moved to GitHub Codespaces**
+      (local run killed before epoch 1 finished; no checkpoint existed;
+      devcontainer auto-installs numpy/torch-CPU; script is seed-deterministic,
+      so Codespace training reproduces the identical model)
 - [ ] Aligned per-position log-probs saved (nn_logp_valid.npy / nn_logp_test.npy)
       with length assertions vs gate npz rows (193,222 / 217,004)
 
