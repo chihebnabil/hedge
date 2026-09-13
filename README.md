@@ -21,6 +21,7 @@ votes plus cheap context evidence cuts WikiText-2 perplexity from 199.5
 | model | WT-2 test PP | PTB test PP |
 |---|---|---|
 | pure KN3 trigram | 296.2 | 165.2 |
+| KenLM 5-gram (toolkit defaults) | 250.9 | 138.4 |
 | pure GRU (aligned) | 146.9 | 103.0 |
 | 5-expert gate (no GRU) | 99.7 | 72.7 |
 | fixed-λ KN3+GRU (tuned on valid) | 135.8 | 92.7 |
@@ -74,6 +75,7 @@ python gate_hybrid.py          # the money table (WT-2)
 python seed_audit.py           # 3-seed ±sd + ensembles
 python benchmarks/gate_sweep.py                # gate size vs quality
 python benchmarks/energy_harness.py            # ms/token + joule proxy
+python benchmarks/kenlm_baseline.py            # toolkit n-gram baseline (needs lmplz)
 ```
 
 ## Reproduce from scratch

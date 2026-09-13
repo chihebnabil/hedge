@@ -316,8 +316,10 @@ KenLM + WikiText-103 + transformer expert to **ACL 2027** (ARR January
 2027 cycle), citing the short version. Backup if reviews are weak: **TMLR**
 (rolling, no deadline). Anonymized, line-numbered submission copy lives in
 `paper/submission/` (review mode + masked repo footnote — regenerate from
-`paper/main.tex` after any edit). Remaining before Oct 12: ARR OpenReview
-profile, responsible-NLP checklist, final proofread.
+`paper/main.tex` after any edit). KenLM baseline DONE pre-submission
+(§10) — removed from the extension list, which is now WikiText-103 +
+transformer expert. Remaining before Oct 12: ARR OpenReview profile
+(moderation queue), responsible-NLP checklist, final proofread.
 
 1. [x] GRU v3 trained/stopped by decision (ep24); expert = ep11 checkpoint
 2. [x] `python nn_expert.py --score-only` — aligned scores, assertions passed
@@ -450,6 +452,28 @@ negligible (PTB, where gate6 ≈ fixed-λ within noise). Full system:
 (tri 21.4 + lag 14.3 + cache/uni 0.3 + GRU 32.7 + gate 0.013); PTB ≈
 28.7 MB (GRU 13.1). Quality-per-joule: gate6 ≈ fixed-λ cost, −34% PP
 (WT-2) / −27% PP (PTB).
+
+### Toolkit baseline — KenLM (2026-09-13, pre-submission add)
+
+`benchmarks/kenlm_baseline.py`: KenLM (Heafield 2011) trained with lmplz
+defaults on OUR dumped gold streams, scored under the exact aligned
+protocol (per-sentence full_scores, drop sentence-initial targets; row
+counts asserted = 217,004 / 75,623; lmplz unigram count 1,927,034 = our
+train stream Σlen ✓).
+
+| order | WT-2 test | PTB test | footprint (trie binary) |
+|---|---|---|---|
+| 3-gram | 257.32 | 146.34 | 57.2 MB arpa / 26.2 MB |
+| 4-gram | 251.96 | 139.79 | 126.3 / 56.7 MB arpa |
+| 5-gram | **250.89** | **138.42** | **53.8 MB / 23.1 MB** |
+
+Reading: KenLM's SGI-modified KN beats our trigram expert (296.2 → 250.9
+WT-2; 165.2 → 138.4 PTB) — expected of a battle-tested toolkit — but sits
+~2.8× / 2× WORSE than the hybrid (90.3 / 68.0) and far above even the
+5-expert gate (99.7 / 72.7). Order scaling flat (257→251, 146→138)
+independently confirms the "classical n-gram scaling exhausted" finding.
+Added to the paper money table + limitations rewritten. Logs:
+`benchmarks/results/kenlm.log`, `benchmarks/results/ptb/kenlm.log`.
 
 **Phase 6 COMPLETE. Remaining: Phase 7 writing only.**
 

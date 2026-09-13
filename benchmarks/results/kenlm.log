@@ -1,0 +1,4 @@
+KenLM baseline (lmplz defaults), aligned protocol, WT2
+3-gram: train 22.11 valid 264.31 test 257.32
+4-gram: train 9.14 valid 257.79 test 251.96
+5-gram: train 7.17 valid 256.65 test 250.89

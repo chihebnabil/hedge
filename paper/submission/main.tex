@@ -180,6 +180,7 @@ expert in hindsight; no realizable system can beat it.
 system & WT-2 test PP & PTB test PP & footprint \\
 \midrule
 pure KN3 trigram & 296.2 & 165.2 & 21.4\,MB \\
+KenLM 5-gram (toolkit defaults) & 250.9 & 138.4 & 53.8\,MB trie \\
 pure GRU (aligned) & 146.9 & 103.0 & 32.9\,MB \\
 5-expert gate (no GRU) & 99.7 & 72.7 & 21.4\,MB $+$ 6.5\,KB \\
 fixed-weight KN3$+$GRU (tuned) & 135.8 & 92.7 & 54.3\,MB \\
@@ -240,10 +241,12 @@ merity2017}---our claim is the controlled comparison, not state of the art.
 (2) \emph{The wrinkle}: on PTB, the larger 13.5\,KB router overfits
 (78.8, worse than the 5-expert gate's 72.7); the valid-selected 2.6\,KB
 router and the valid-trained router do not. Router variance on the smaller
-corpus is real (sd 10.1) and we report it. (3) \emph{Baselines}: we compare
-against our own tuned interpolation and smoothing family, not against
-toolkit-grade $n$-grams \cite{heafield2011} or transformer LMs; closing this
-gap is the next step (below). (4) One tokenizer, two English corpora, CPU
+corpus is real (sd 10.1) and we report it. (3) \emph{Baselines}: we include a
+toolkit-grade KenLM 5-gram \cite{heafield2011} trained with default
+settings on the same streams (250.9 and 138.4 aligned test PP): it improves
+on our trigram expert, as expected of a battle-tested implementation, but
+sits far above every hybrid row. We do not compare against transformer
+LMs---the natural stronger baseline, left to the extension. (4) One tokenizer, two English corpora, CPU
 timing on one machine---all documented in the released dossier.
 
 \section{Conclusion and Future Work}
@@ -253,9 +256,9 @@ perplexity reduction from \emph{the same experts} that tuned fixed
 interpolation blends---and static mixing cannot. We take this as evidence
 that per-token routing, not parameter count, is where the small hybrid's
 headroom lives. The immediate extensions of this workshop study are a
-KenLM-grade baseline \cite{heafield2011}, a third larger corpus
-(WikiText-103), and a tiny transformer expert; an extended version
-incorporating them is in preparation and will cite this one.
+third larger corpus (WikiText-103) and a tiny transformer expert; an
+extended version incorporating them is in preparation and will cite this
+one.
 
 \bibliography{references}
 

@@ -98,6 +98,9 @@ _Last updated: 2026-09-13_
       2006; anchors: Chen & Goodman 1999, Jelinek 1980, Merity 2017,
       Zaremba 2014. DROPPED as unverifiable: Sak 2013, Levit 2023,
       Qin 2023, Zhong 2025.
+- [x] KenLM toolkit baseline (pre-submission add): 5-gram 250.9 WT-2 /
+      138.4 PTB under the aligned protocol — beats our trigram expert,
+      ~2-3x worse than the hybrid; in the paper money table (PAPER_NOTES §10)
 - [x] Repo release hygiene: MIT LICENSE + base-repo attribution; binaries
       gitignored w/ regen commands in README; verified bibliography (§11);
       23 base tests green; auto-resume watchdog wired.

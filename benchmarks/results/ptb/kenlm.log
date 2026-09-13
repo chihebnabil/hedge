@@ -1,0 +1,4 @@
+KenLM baseline (lmplz defaults), aligned protocol, PTB
+3-gram: train 18.21 valid 156.01 test 146.34
+4-gram: train 8.52 valid 147.51 test 139.79
+5-gram: train 6.70 valid 145.61 test 138.42
