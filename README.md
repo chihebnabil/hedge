@@ -1,6 +1,7 @@
 # Hedge 🦔
 ### One tamer, many beasts — a hybrid expert-mixture language model
-*(built on the ZipfNextWordPredictor base — "BEAST" v5)*
+*(built on the [ZipfNextWordPredictor](https://github.com/chihebnabil/ZipfNextWordPredictor)
+base — "BEAST" v5; MIT-licensed, see [LICENSE](LICENSE))*
 
 A study of how far **tiny learned routing** can push frozen cheap experts:
 five 1990s-style statistical experts plus one small GRU, blended per-token by
@@ -134,7 +135,8 @@ whenever the Codespace container restarts.
 
 A from-scratch modified Kneser-Ney trigram in pure standard-library Python
 with a Zipf-continuation prior, personalization user layer, CLI, and a
-fixed-protocol benchmark suite. Its published results reproduce exactly
+fixed-protocol benchmark suite, developed at
+[chihebnabil/ZipfNextWordPredictor](https://github.com/chihebnabil/ZipfNextWordPredictor). Its published results reproduce exactly
 (see `RESULTS.md`); its novel prior's contribution is analyzed honestly in
 Phase 0 of `PROGRESS.md`. Engines: `"beast"` (default),
 `"modified_kneser_ney"`, `"kneser_ney"`, `"zipf"` (legacy v4).
