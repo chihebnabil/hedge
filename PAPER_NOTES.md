@@ -187,18 +187,22 @@ container after 30 min of editor disconnect):**
     (methodology + oracle bounds carry it).
 - Conference tier REQUIRES: PTB replication (Phase 5) + 3-seed ±sd on
   headline rows + energy/latency harness (Phase 6) + 5-gram baseline fix.
-- Related work to cite/position against: Sak 2013, Levit 2023 (fast pointer
-  to fixed interpolation), Mathur 2023 (PersonaLM, on-device personalization),
-  Qin 2023, Zhong 2025. Our lane: **learned evidence-aware multi-expert
-  routing + oracle-bound measurement + footprint-matched fight**, toy-scale
-  but fully reproducible.
+- Related work to cite/position against (VERIFIED — see §11): Mikolov et al.
+  2011 (ASRU) + Sundermeyer et al. 2012 (fixed-weight n-gram/neural
+  interpolation), Chang et al. 2015 (ASRU, discriminatively trained LM
+  interpolation weights), Mathur et al. 2023 (PersonaLM, on-device
+  personalization), plus the verified classic anchors in §11. Our lane:
+  **learned evidence-aware multi-expert routing + oracle-bound measurement +
+  footprint-matched fight**, toy-scale but fully reproducible.
 - Watch items: max|logit| racing >~30 while valid stalls → stop early, keep
   best (per-epoch snapshots make this safe); Codespace idle suspension
   stretches wall-clock (harmless); gate seed variance → always ≥3 seeds.
 - **Novelty positioning (locked 2026-09-12, tightened after external
   critique):** MoE-with-learned-router itself is NOT the claim — the paper
   must CONCEDE it specifically in the intro's FIRST paragraph, naming
-  Jacobs & Jordan 1991 and Shazeer 2017 explicitly, before any reviewer
+  Jacobs, Jordan, Nowlan & Hinton 1991 (NOTE: four authors — cite as
+  "Jacobs et al. 1991", NOT "Jacobs & Jordan") and Shazeer et al. 2017
+  explicitly, before any reviewer
   can accuse us of hiding it. "We know this isn't new; here's exactly why
   we did it anyway." Three concrete claims:
   1. **The regime is the hook — attach numbers immediately:** a ~13 KB
@@ -436,3 +440,77 @@ negligible (PTB, where gate6 ≈ fixed-λ within noise). Full system:
 (WT-2) / −27% PP (PTB).
 
 **Phase 6 COMPLETE. Remaining: Phase 7 writing only.**
+
+## 11. Related-work verification (2026-09-12)
+
+Every planned citation was checked against live metadata (Crossref / arXiv /
+dblp APIs). Status per claim:
+
+### VERIFIED — cite as-is
+- **Jacobs, Jordan, Nowlan & Hinton 1991** — "Adaptive Mixtures of Local
+  Experts", Neural Computation 3(1), doi:10.1162/neco.1991.3.1.79.
+  Abstract confirms the MoE content. CAUTION: FOUR authors — cite as
+  "Jacobs et al. 1991" (the dossier's earlier "Jacobs & Jordan 1991" label
+  conflates this with Jordan & Jacobs 1994).
+- **Jordan & Jacobs 1994** — "Hierarchical Mixtures of Experts and the EM
+  Algorithm", Neural Computation 6(2), doi:10.1162/neco.1994.6.2.181.
+  (Optional second lineage cite; our per-position supervised gate is closer
+  to this than to online exp-weights.)
+- **Shazeer et al. 2017** — "Outrageously Large Neural Networks: The
+  Sparsely-Gated Mixture-of-Experts Layer", arXiv:1701.06538 (ICLR 2017).
+  Title confirmed on arXiv.
+- **Mikolov, Deoras, Povey, Burget & Černocký 2011** — "Strategies for
+  training large scale neural network language models", IEEE ASRU 2011,
+  doi:10.1109/asru.2011.6163930. THE pointer for "Mikolov-era small hybrid
+  interpolation" (RNN + KN interpolated with a fixed heldout-tuned weight);
+  also validates our PTB split lineage. Supports the §5 pivot sentence.
+- **Sundermeyer, Schlüter & Ney 2012** — "LSTM neural networks for language
+  modeling", Interspeech 2012, doi:10.21437/interspeech.2012-65. Second
+  fixed-weight hybrid interpolation pointer.
+- **Chang, Lahiri, Alphonso, Oguz & Levit 2015** — "Discriminative training
+  of context-dependent language model scaling factors and interpolation",
+  IEEE ASRU 2015, doi:10.1109/asru.2015.7404772. Fixed/discriminatively
+  trained interpolation — REPLACES the dossier's "Levit 2023" (misremembered;
+  Levit is the last author here).
+- **Mathur et al. 2023** — "PersonaLM: Language Model Personalization via
+  Domain-distributed Span Aggregated K-Nearest...", Findings of EMNLP 2023,
+  doi:10.18653/v1/2023.findings-emnlp.757. On-device personalization pointer.
+- **Freund & Schapire 1997** — "A Decision-Theoretic Generalization of
+  On-Line Learning and an Application to Boosting", J. Comput. Syst. Sci.,
+  doi:10.1006/jcss.1997.1504. The Hedge algorithm — project namesake;
+  cite for prediction-with-expert-advice lineage of the oracle bound.
+- **Kneser & Ney 1995** — "Improved backing-off for M-gram language
+  modeling", ICASSP 1995, doi:10.1109/icassp.1995.479394.
+- **Merity et al. 2017** — "Regularizing and Optimizing LSTM Language
+  Models", arXiv:1708.02182 (AWD-LSTM; WT-2/PTB anchor numbers).
+- **Zaremba, Sutskever & Vinyals 2014** — "Recurrent Neural Network
+  Regularization", arXiv:1409.2329 (PTB LSTM anchor numbers).
+
+### CANONICAL — cite from memory, re-confirm metadata at camera-ready
+(page checks blocked in this sandbox; papers are unambiguous classics)
+- Bengio, Ducharme, Vincent & Jauvin 2003 — "A Neural Probabilistic Language
+  Model", JMLR 3:1137–1155 (jmlr.org/papers/v3/bengio03a.html exists).
+- Chen & Goodman 1999 — "An Empirical Study of Smoothing Methods for
+  Language Models", Computational Linguistics 25(1):73–100.
+- Jelinek 1980 — "Interpolated estimation of Markov source parameters from
+  sparse data", Pattern Recognition in Practice, North-Holland, 381–397
+  (predates the neural hybrids; the origin of interpolation).
+- Mikolov et al. 2010 — "Recurrent neural network based language model",
+  Interspeech 2010 (RNN-LM origin).
+- Cesa-Bianchi & Lugosi 2006 — "Prediction, Learning, and Games", Cambridge
+  UP (oracle/competitor bound formalism; §"the hindsight oracle" name-drop).
+
+### DROPPED — could not verify; do NOT cite
+- "Sak 2013" — no such LM paper; nearest real match is Sak, Senior &
+  Beaufays 2014 (Interspeech, doi:10.21437/interspeech.2014-80) which is
+  ASR, off-topic. Fixed-interpolation pointers are Mikolov 2011 + Sundermeyer
+  2012 instead.
+- "Levit 2023" — replaced by Chang et al. 2015 (above).
+- "Qin 2023" — could not identify any relevant paper after repeated
+  searches. Drop.
+- "Zhong 2025" — only junk/unrelated matches. Drop.
+
+### Bibliography discipline for Phase 7
+1. Cite only from the VERIFIED + CANONICAL lists above.
+2. Every citation gets a DOI or arXiv ID in the .bib.
+3. Before submission: batch re-check all DOIs resolve (one curl loop).
