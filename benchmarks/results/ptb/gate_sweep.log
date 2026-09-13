@@ -1,0 +1,5 @@
+== gate-size sweep: PTB, GATE(6) train-trained, 75,623 test positions ==
+  h= 24  gate   2.6 KB   valid   71.27   test   68.02
+  h= 64  gate   6.8 KB   valid   93.41   test   87.47
+  h=128  gate  13.5 KB   valid   84.33   test   78.81
+  h=256  gate  27.0 KB   valid   90.44   test   84.43

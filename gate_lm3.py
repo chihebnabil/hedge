@@ -13,8 +13,10 @@ import numpy as np
 
 from gate_lm2 import report, train_gate
 
-CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "benchmarks", "results")
+CACHE_DIR = os.environ.get(
+    "HEDGE_RESULTS",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                 "benchmarks", "results"))
 NEXP = 5
 
 

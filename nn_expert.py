@@ -18,6 +18,7 @@ Protocol notes:
 import math
 import os
 import pickle
+import sys
 import time
 
 import numpy as np
@@ -28,14 +29,17 @@ from mixer_lm import GOLD, TRI_PKL
 from ZipfNextWordPredictor import ZipfNextWordPredictor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "benchmarks", "results")
-EPOCHS = 6
+OUT = os.environ.get("HEDGE_RESULTS",
+                     os.path.join(HERE, "benchmarks", "results"))
+EPOCHS = 30
 BS = 32
 TSL = 64
 EMB = 256
 HID = 256
-LR = 3e-3
-CLIP = 0.25
+LR = 1e-3
+CLIP = 1.0
+WARMUP_STEPS = int(os.environ.get("HEDGE_WARMUP", "980"))
+# WT-2 default: one epoch of linear warmup, then cosine decay
 
 
 class GRULM(nn.Module):
@@ -71,7 +75,12 @@ def load_streams():
             out.extend(w2i.get(w, unk) for w in sent)
             out.append(V - 1)                           # eos
         return np.asarray(out, dtype=np.int64)
-    return stream("train"), stream("valid"), stream("test"), V
+    return (stream("train"), stream("valid"), stream("test"), V, streams)
+
+
+def gate_row_count(streams, split):
+    """Positions the gate scores: every word except each sentence's first."""
+    return sum(max(len(s) - 1, 0) for s in streams[split])
 
 
 def batchify(arr, bs):
@@ -99,12 +108,19 @@ def evaluate(model, arr, crit, device):
 
 def score_aligned(model, arr, device):
     """Stream bs=1 with carried hidden state; record log p(token) for every
-    non-eos position in stream order (== gate npz row order)."""
+    target that is non-eos AND not sentence-initial (predecessor is not eos).
+    Gate collection (gate_lm.py) skips each sentence's first word and never
+    scores eos, so kept rows == sum(len(sent)-1) == the gate npz row order."""
     model.eval()
     x_all = torch.from_numpy(arr)
-    out = np.empty(len(arr) - 1, dtype=np.float32)
+    tgt_all = arr[1:]
+    prev_all = arr[:-1]
+    keep_all = (tgt_all != EOS) & (prev_all != EOS)
+    n_keep = int(keep_all.sum())
+    out = np.empty(n_keep, dtype=np.float32)
     h = None
     CH = 256
+    w = 0
     with torch.no_grad():
         for s in range(0, len(arr) - 1, CH):
             k = min(CH, len(arr) - 1 - s)
@@ -113,18 +129,22 @@ def score_aligned(model, arr, device):
             lp = torch.log_softmax(logits, dim=-1).squeeze(0).cpu()
             tgt = x_all[s + 1:s + 1 + k]
             val = lp.gather(1, tgt.unsqueeze(1)).squeeze(1).numpy()
-            keep = tgt.numpy() != EOS
-            out[s:s + len(tgt)][keep] = val[keep]
+            keep = keep_all[s:s + k]
+            m = int(keep.sum())
+            out[w:w + m] = val[keep]
+            w += m
+    assert w == n_keep
     return out
 
 
 EOS = None
 
 
-def main():
+def main(score_only=False):
     global EOS
     t0 = time.time()
-    tr, va, te, V = load_streams()
+    torch.set_num_threads(min(4, os.cpu_count() or 1))
+    tr, va, te, V, streams = load_streams()
     EOS = V - 1
     device = "cpu"
     torch.manual_seed(42)
@@ -133,19 +153,36 @@ def main():
     opt = torch.optim.Adam(model.parameters(), lr=LR)
     data = batchify(tr, BS)
     steps_per_epoch = (data.shape[1] - 1) // TSL
-    sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, EPOCHS *
-                                                       steps_per_epoch)
+    total_steps = EPOCHS * steps_per_epoch
+
+    def lr_lambda(step):
+        if step < WARMUP_STEPS:
+            return (step + 1) / WARMUP_STEPS
+        p = (step - WARMUP_STEPS) / max(1, total_steps - WARMUP_STEPS)
+        return 0.01 + 0.99 * 0.5 * (1.0 + math.cos(math.pi * p))
+
+    sched = torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda)
     ckpt = os.path.join(OUT, "nn_gru_best.pt")
+    last = os.path.join(OUT, "nn_gru_last.pt")
     start_ep = 0
     best_pp = 1e9
-    best_state = None
-    if os.path.exists(ckpt):
-        best_state = torch.load(ckpt)
-        model.load_state_dict(best_state)
+    if score_only and os.path.exists(ckpt):
+        model.load_state_dict(torch.load(ckpt))
         best_pp = evaluate(model, va, crit, device)
-        print(f"resuming: loaded checkpoint with valid PP={best_pp:.2f}",
+        print(f"score-only: loaded best checkpoint, valid PP={best_pp:.2f}",
               flush=True)
+        start_ep = EPOCHS
+    elif os.path.exists(last):
+        snap = torch.load(last)
+        model.load_state_dict(snap["model"])
+        opt.load_state_dict(snap["opt"])
+        sched.load_state_dict(snap["sched"])
+        start_ep = snap["epoch"]
+        best_pp = snap["best_pp"]
+        print(f"resuming: epoch {start_ep}/{EPOCHS}, "
+              f"best valid PP so far {best_pp:.2f}", flush=True)
     print(f"V={V}  train tok={len(tr):,}  steps/epoch={steps_per_epoch}  "
+          f"threads={torch.get_num_threads()}  "
           f"params={sum(p.numel() for p in model.parameters())/1e6:.1f}M",
           flush=True)
 
@@ -171,23 +208,35 @@ def main():
             tot += float(loss.detach()) * y.numel()
             n += y.numel()
         vpp = evaluate(model, va, crit, device)
+        with torch.no_grad():
+            probe, _ = model(data[:2, :TSL], None)
+            lmax = float(probe.abs().max())
         print(f"epoch {ep+1}/{EPOCHS}: train NLL {tot/n:.4f} "
               f"(PP {math.exp(tot/n):.2f})  valid PP {vpp:.2f}  "
+              f"lr {sched.get_last_lr()[0]:.2e}  max|logit| {lmax:.1f}  "
               f"[{time.time()-te0:.0f}s, total {time.time()-t0:.0f}s]",
               flush=True)
         if vpp < best_pp:
             best_pp = vpp
-            best_state = {k: v.clone() for k, v in model.state_dict().items()}
-            torch.save(best_state, ckpt)
+            torch.save({k: v.clone() for k, v in model.state_dict().items()},
+                       ckpt)
             print("  -> new best, checkpointed", flush=True)
+        torch.save({"epoch": ep + 1, "model": model.state_dict(),
+                    "opt": opt.state_dict(), "sched": sched.state_dict(),
+                    "best_pp": best_pp}, last)
 
     model.load_state_dict(torch.load(ckpt))
+    print("ALL EPOCHS DONE", flush=True)
     vpp = evaluate(model, va, crit, device)
     print(f"best model valid PP={vpp:.2f}", flush=True)
-    for split, arr in (("valid", va), ("test", te)):
+    for split, arr in (("train", tr), ("valid", va), ("test", te)):
         lp = score_aligned(model, arr, device)
+        exp = gate_row_count(streams, split)
+        assert len(lp) == exp, \
+            f"{split}: {len(lp):,} logp rows != gate {exp:,}"
         np.save(os.path.join(OUT, f"nn_logp_{split}.npy"), lp)
-        print(f"saved nn_logp_{split}.npy  n={len(lp):,}", flush=True)
+        print(f"saved nn_logp_{split}.npy  n={len(lp):,} "
+              f"(== gate rows)", flush=True)
     print("pure-GRU test PP (next step evaluates it against the gate npz):",
           flush=True)
     print(f"  {evaluate(model, te, crit, device):.2f}", flush=True)
@@ -195,4 +244,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(score_only="--score-only" in sys.argv)

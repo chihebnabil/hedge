@@ -1,0 +1,70 @@
+building lag-2 / lag-3 bigram experts ...
+  [train] sent 2000/56043  pos 29,149  (0s)
+  [train] sent 4000/56043  pos 59,194  (1s)
+  [train] sent 6000/56043  pos 90,689  (1s)
+  [train] sent 8000/56043  pos 120,898  (2s)
+  [train] sent 10000/56043  pos 152,035  (2s)
+  [train] sent 12000/56043  pos 182,514  (2s)
+  [train] sent 14000/56043  pos 213,220  (3s)
+  [train] sent 16000/56043  pos 243,392  (3s)
+  [train] sent 18000/56043  pos 274,097  (4s)
+  [train] sent 20000/56043  pos 304,995  (4s)
+  [train] sent 22000/56043  pos 335,013  (5s)
+  [train] sent 24000/56043  pos 364,450  (5s)
+  [train] sent 26000/56043  pos 396,001  (5s)
+  [train] sent 28000/56043  pos 424,248  (6s)
+  [train] sent 30000/56043  pos 455,288  (6s)
+  [train] sent 32000/56043  pos 485,554  (7s)
+  [train] sent 34000/56043  pos 515,583  (7s)
+  [train] sent 36000/56043  pos 544,713  (7s)
+  [train] sent 38000/56043  pos 575,380  (8s)
+  [train] sent 40000/56043  pos 605,672  (8s)
+  [train] sent 42000/56043  pos 637,900  (9s)
+  [train] sent 44000/56043  pos 668,783  (9s)
+  [train] sent 46000/56043  pos 699,997  (10s)
+  [train] sent 48000/56043  pos 730,888  (10s)
+  [train] sent 50000/56043  pos 762,110  (11s)
+  [train] sent 52000/56043  pos 792,503  (11s)
+  [train] sent 54000/56043  pos 820,496  (11s)
+  [train] sent 56000/56043  pos 850,464  (12s)
+  [train] done: 851,095 positions in 12s
+  [valid] sent 2000/4429  pos 29,882  (0s)
+  [valid] sent 4000/4429  pos 61,317  (1s)
+  [valid] done: 67,396 positions in 1s
+  [test] sent 2000/4971  pos 31,134  (0s)
+  [test] sent 4000/4971  pos 59,979  (1s)
+  [test] done: 75,623 positions in 1s
+[train] 851,095 positions | oracle PP=19.13
+[valid] 67,396 positions | oracle PP=67.76
+[test] 75,623 positions | oracle PP=64.79
+== frozen-expert baselines (same test stream) ==
+  equal mix (static)                     PP=  196.24
+  global static alpha (learned)          PP=  152.77
+  bucket softmax, static (learned)       PP=  152.24
+== neural gate ==
+ training MLP gate (hidden=24) on 851,095 train positions ...
+  epoch 1: train NLL 3.9984
+  epoch 2: train NLL 3.5468
+  epoch 3: train NLL 3.5468
+  epoch 4: train NLL 3.5468
+  hidden=24: valid NLL=5.1821 (PP=178.05)  gate=2.5 KB
+ training MLP gate (hidden=64) on 851,095 train positions ...
+  epoch 1: train NLL 3.2176
+  epoch 2: train NLL 2.9905
+  epoch 3: train NLL 2.9596
+  epoch 4: train NLL 2.9572
+  hidden=64: valid NLL=4.3817 (PP=79.98)  gate=6.5 KB
+ training MLP gate (hidden=128) on 851,095 train positions ...
+  epoch 1: train NLL 3.3308
+  epoch 2: train NLL 3.1736
+  epoch 3: train NLL 3.1711
+  epoch 4: train NLL 3.1701
+  hidden=128: valid NLL=4.8276 (PP=124.91)  gate=13.0 KB
+  MLP gate (frozen, test)                PP=   75.89
+  vs static bucket: gate wins on 96.2% of positions, mean log-gain +0.6962
+    bucket 0: n= 71,717  mean log-gain +0.6935
+    bucket 1: n=    293  mean log-gain +0.6953
+    bucket 2: n=    641  mean log-gain +0.8076
+    bucket 3: n=  2,972  mean log-gain +0.7360
+  gate expert picks: kn3 58%, lag2 13%, cache 18%, lag3 10%, uni 0%
+== anchors: bucket mixer (online, valid-warmed) 199.50 | oracle 89.1 | MLP gate 75.89 ==

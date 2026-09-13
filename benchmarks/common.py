@@ -134,6 +134,46 @@ def load_wikitext2(data_dir=DATA_DIR):
     return train, valid, test
 
 
+def load_ptb(data_dir=DATA_DIR):
+    """
+    Returns (train_sents, valid_sents, test_sents) with the predictor's
+    tokenization, valid/test OOV mapped to "unk" (Mikolov PTB split,
+    data/ptb/ptb.{split}.txt; one sentence per line, pre-tokenized).
+    Note: the predictor tokenizer re-splits PTB tokens (e.g. "u.s." -> two
+    tokens), so vocab and streams follow OUR tokenizer, not PTB's raw one.
+    """
+    ptb = os.path.join(data_dir, "ptb")
+    paths = {split: os.path.join(ptb, f"ptb.{split}.txt")
+             for split in ("train", "valid", "test")}
+    missing = [p for p in paths.values() if not os.path.exists(p)]
+    if missing:
+        raise RuntimeError(f"PTB files missing: {missing}\n"
+                           "Fetch the Mikolov split (tomsercu/lstm): "
+                           "curl -L -o data/ptb/ptb.train.txt "
+                           "https://raw.githubusercontent.com/tomsercu/lstm"
+                           "/master/data/ptb.train.txt (and valid/test)")
+
+    print("  tokenizing train ...")
+    train = []
+    with open(paths["train"], encoding="utf-8") as f:
+        for line in f:
+            train.extend(tokenize_line(line))
+    vocab = set()
+    for sent in train:
+        vocab.update(sent)
+
+    unk = "unk"
+    print("  tokenizing valid/test (+unk mapping) ...")
+    valid, test = [], []
+    for split, store in (("valid", valid), ("test", test)):
+        with open(paths[split], encoding="utf-8") as f:
+            for line in f:
+                for sent in tokenize_line(line):
+                    store.append([w if w in vocab else unk for w in sent])
+
+    return train, valid, test
+
+
 def streams_to_text(sents):
     """Re-join token sentences into raw text the predictor tokenizes back
     identically."""

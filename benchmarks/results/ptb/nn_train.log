@@ -1,0 +1,60 @@
+V=9645  train tok=963,181  steps/epoch=470  threads=4  params=3.3M
+epoch 1/30: train NLL 6.9084 (PP 1000.64)  valid PP 682.26  lr 1.00e-03  max|logit| 5.9  [396s, total 398s]
+  -> new best, checkpointed
+epoch 2/30: train NLL 5.8919 (PP 362.10)  valid PP 260.64  lr 9.97e-04  max|logit| 12.8  [404s, total 802s]
+  -> new best, checkpointed
+epoch 3/30: train NLL 5.3307 (PP 206.59)  valid PP 197.63  lr 9.88e-04  max|logit| 14.2  [394s, total 1197s]
+  -> new best, checkpointed
+epoch 4/30: train NLL 5.0814 (PP 161.00)  valid PP 173.52  lr 9.73e-04  max|logit| 16.3  [409s, total 1605s]
+  -> new best, checkpointed
+epoch 5/30: train NLL 4.9206 (PP 137.08)  valid PP 158.29  lr 9.53e-04  max|logit| 15.9  [336s, total 1941s]
+  -> new best, checkpointed
+epoch 6/30: train NLL 4.7937 (PP 120.74)  valid PP 147.88  lr 9.28e-04  max|logit| 16.9  [295s, total 2237s]
+  -> new best, checkpointed
+epoch 7/30: train NLL 4.6890 (PP 108.75)  valid PP 141.59  lr 8.98e-04  max|logit| 18.4  [343s, total 2579s]
+  -> new best, checkpointed
+epoch 8/30: train NLL 4.5993 (PP 99.41)  valid PP 136.38  lr 8.63e-04  max|logit| 17.3  [289s, total 2868s]
+  -> new best, checkpointed
+epoch 9/30: train NLL 4.5246 (PP 92.26)  valid PP 133.44  lr 8.24e-04  max|logit| 19.1  [290s, total 3158s]
+  -> new best, checkpointed
+epoch 10/30: train NLL 4.4586 (PP 86.37)  valid PP 130.48  lr 7.81e-04  max|logit| 17.2  [288s, total 3446s]
+  -> new best, checkpointed
+epoch 11/30: train NLL 4.4026 (PP 81.66)  valid PP 129.84  lr 7.35e-04  max|logit| 18.5  [290s, total 3736s]
+  -> new best, checkpointed
+epoch 12/30: train NLL 4.3514 (PP 77.59)  valid PP 128.68  lr 6.86e-04  max|logit| 18.8  [289s, total 4025s]
+  -> new best, checkpointed
+epoch 13/30: train NLL 4.3085 (PP 74.33)  valid PP 127.26  lr 6.36e-04  max|logit| 19.3  [290s, total 4315s]
+  -> new best, checkpointed
+epoch 14/30: train NLL 4.2663 (PP 71.26)  valid PP 126.52  lr 5.83e-04  max|logit| 19.0  [296s, total 4611s]
+  -> new best, checkpointed
+epoch 15/30: train NLL 4.2297 (PP 68.70)  valid PP 126.18  lr 5.30e-04  max|logit| 19.7  [289s, total 4901s]
+  -> new best, checkpointed
+epoch 16/30: train NLL 4.1990 (PP 66.62)  valid PP 125.18  lr 4.77e-04  max|logit| 19.3  [294s, total 5195s]
+  -> new best, checkpointed
+epoch 17/30: train NLL 4.1682 (PP 64.60)  valid PP 125.15  lr 4.24e-04  max|logit| 19.5  [302s, total 5497s]
+  -> new best, checkpointed
+epoch 18/30: train NLL 4.1434 (PP 63.02)  valid PP 125.35  lr 3.71e-04  max|logit| 19.7  [299s, total 5796s]
+epoch 19/30: train NLL 4.1189 (PP 61.49)  valid PP 124.89  lr 3.21e-04  max|logit| 21.1  [313s, total 6109s]
+  -> new best, checkpointed
+epoch 20/30: train NLL 4.0957 (PP 60.08)  valid PP 125.14  lr 2.72e-04  max|logit| 21.5  [304s, total 6413s]
+epoch 21/30: train NLL 4.0782 (PP 59.04)  valid PP 124.86  lr 2.26e-04  max|logit| 21.6  [279s, total 6692s]
+  -> new best, checkpointed
+epoch 22/30: train NLL 4.0626 (PP 58.12)  valid PP 125.41  lr 1.84e-04  max|logit| 21.5  [280s, total 6972s]
+epoch 23/30: train NLL 4.0479 (PP 57.28)  valid PP 124.75  lr 1.45e-04  max|logit| 21.7  [282s, total 7254s]
+  -> new best, checkpointed
+epoch 24/30: train NLL 4.0371 (PP 56.66)  valid PP 124.85  lr 1.11e-04  max|logit| 21.0  [285s, total 7539s]
+epoch 25/30: train NLL 4.0278 (PP 56.14)  valid PP 125.00  lr 8.06e-05  max|logit| 21.9  [283s, total 7822s]
+epoch 26/30: train NLL 4.0199 (PP 55.69)  valid PP 124.63  lr 5.56e-05  max|logit| 21.0  [286s, total 8109s]
+  -> new best, checkpointed
+epoch 27/30: train NLL 4.0154 (PP 55.44)  valid PP 123.59  lr 3.58e-05  max|logit| 22.3  [286s, total 8395s]
+  -> new best, checkpointed
+epoch 28/30: train NLL 4.0108 (PP 55.19)  valid PP 124.10  lr 2.15e-05  max|logit| 20.8  [283s, total 8678s]
+epoch 29/30: train NLL 4.0083 (PP 55.05)  valid PP 124.20  lr 1.29e-05  max|logit| 22.0  [284s, total 8962s]
+epoch 30/30: train NLL 4.0061 (PP 54.93)  valid PP 123.78  lr 1.00e-05  max|logit| 21.9  [283s, total 9245s]
+best model valid PP=123.84
+saved nn_logp_train.npy  n=851,095 (== gate rows)
+saved nn_logp_valid.npy  n=67,396 (== gate rows)
+saved nn_logp_test.npy  n=75,623 (== gate rows)
+pure-GRU test PP (next step evaluates it against the gate npz):
+  86.32
+done in 9498s

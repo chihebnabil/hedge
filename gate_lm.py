@@ -33,7 +33,8 @@ import numpy as np
 from mixer_lm import FLOOR, build
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR = os.path.join(HERE, "benchmarks", "results")
+CACHE_DIR = os.environ.get("HEDGE_RESULTS",
+                           os.path.join(HERE, "benchmarks", "results"))
 NF = 20
 NEXP = 5
 LP_MIN = math.log(FLOOR)

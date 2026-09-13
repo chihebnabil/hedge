@@ -1,0 +1,18 @@
+loading splits ...
+  experts per position: 6  (kn3, lag2, cache, lag3, uni, gru)
+== the money table (PTB test, 75,623 aligned positions) ==
+  pure GRU                           PP=   103.01  [32.9 MB fp32 / 16.4 fp16]
+  pure KN3 (anchor)                  PP=   165.15  [21.4 MB counts]
+  gate[5 experts]                    PP=    72.73  [21.4 MB + gate 6.5 KB]
+  fixed-lambda KN3+GRU               PP=    92.65  [lambda*=0.28 on valid, 21.4+32.9 MB]
+  static-alpha (6 experts)           PP=   101.74  [alpha kn3 0.60 lag2 0.00 cache 0.00 lag3 0.06 uni 0.00 gru 0.34]
+    [gate h=24: valid PP 71.27]
+    [gate h=64: valid PP 93.41]
+    [gate h=128: valid PP 84.33]
+    [gate h=256: valid PP 90.44]
+  GATE hybrid (6 experts)            PP=    68.02  [21.4 MB + gate 2.6 KB + 32.9 MB]
+  GATE hybrid, valid-trained         PP=    63.93  [fair-data control]
+  oracle (6 experts)                 PP=    44.37  [bound]
+== verdict ==
+  gate vs oracle gap: +23.65 PP (53.3%)
+  GATE BEATS fixed-lambda (68.02 < 92.65) — load-bearing claim survives on PTB

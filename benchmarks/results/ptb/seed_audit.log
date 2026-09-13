@@ -1,0 +1,19 @@
+== seed audit: GATE(6) train-trained h=24, 12 ep ==
+  [gate6-train] seed 0: test PP 68.02
+  [gate6-train] seed 1: test PP 86.14
+  [gate6-train] seed 2: test PP 69.53
+  => gate6-train: 74.56 ± 10.05 (3 seeds)
+  => gate6-train: 3-gate ENSEMBLE PP 69.86
+== seed audit: GATE(6) valid-trained h=64, 15 ep ==
+  [gate6-valid] seed 0: test PP 63.93
+  [gate6-valid] seed 1: test PP 63.60
+  [gate6-valid] seed 2: test PP 84.65
+  => gate6-valid: 70.73 ± 12.06 (3 seeds)
+  => gate6-valid: 3-gate ENSEMBLE PP 65.37
+== seed audit: static-alpha (6 experts) ==
+  [static-alpha] seed 0: test PP 101.74
+  [static-alpha] seed 1: test PP 101.87
+  [static-alpha] seed 2: test PP 102.02
+  => static-alpha: 101.88 ± 0.14 (3 seeds)
+  => static-alpha: 3-gate ENSEMBLE PP 101.88
+== anchors (seed 0, ptb money_table.log): gate6-train 78.81 | gate6-valid 63.93 | static-alpha 101.74 | fixed-lambda 92.65 ==

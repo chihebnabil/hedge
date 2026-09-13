@@ -14,7 +14,8 @@ import os
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR = os.path.join(HERE, "benchmarks", "results")
+CACHE_DIR = os.environ.get("HEDGE_RESULTS",
+                           os.path.join(HERE, "benchmarks", "results"))
 NEXP = 5
 
 

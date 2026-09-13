@@ -50,8 +50,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from ZipfNextWordPredictor import ZipfNextWordPredictor  # noqa: E402
 
-GOLD = os.path.join(HERE, "benchmarks", "results", "gold_streams.pkl")
-TRI_PKL = os.path.join(HERE, "benchmarks", "results", "beast_trigram.pkl")
+_RES = os.environ.get("HEDGE_RESULTS",
+                      os.path.join(HERE, "benchmarks", "results"))
+GOLD = os.path.join(_RES, "gold_streams.pkl")
+TRI_PKL = os.path.join(_RES, "beast_trigram.pkl")
 FLOOR = 1e-12
 EXPERT_FLOOR = 1e-10
 CACHE_WINDOW = 512
