@@ -4,7 +4,7 @@
 learned gate + small neural expert), built on top of the original
 ZipfNextWordPredictor repo. Target: **conference-attempt paper**.
 
-_Last updated: 2026-09-09 (session in progress)_
+_Last updated: 2026-09-13_
 
 ---
 
@@ -49,7 +49,8 @@ _Last updated: 2026-09-09 (session in progress)_
       assertions (1,846,068 / 193,222 / 217,004) — all green
 
 ### Phase 4 — The money table ✅ DONE (2026-09-12)
-- [x] `gate_hybrid.py`: GRU = 6th expert; staleness guard; mock dry-run
+- [x] `gate_hybrid.py`: adds the GRU as 6th expert; staleness guard on
+      aligned scores
 - [x] Fixed-λ KN3+GRU baseline (λ*=0.21 on valid) + static-α over 6 experts
 - [x] **The table: GATE(6) 90.28 BEATS fixed-λ 135.84 (−45.6 PP)**;
       hybrid < gate[5] 99.68 < pure GRU 146.85; oracle 57.35; footprint per
@@ -58,7 +59,7 @@ _Last updated: 2026-09-09 (session in progress)_
 - [x] Verdict recorded honestly — conference path live; remaining: 3-seed,
       PTB, energy numbers (Phase 5-6)
 
-### Phase 5 — Second corpus (PTB) ✅ COMPLETE (2026-09-12 evening)
+### Phase 5 — Second corpus (PTB) ✅ COMPLETE (2026-09-12)
 - [x] Download PTB (standard Mikolov split), build gold streams + trigram pickle
 - [x] Rebuild 5 experts, collect gate data, train PTB GRU (recipe v3 verbatim,
       30/30 epochs, best valid 123.6 @ep27; aligned scores exact-match rows)
@@ -84,10 +85,10 @@ _Last updated: 2026-09-09 (session in progress)_
 
 ### Phase 7 — Write-up ⬜ PENDING
 - [x] Draft written: `paper/main.tex` + `references.bib` (ACL style, 4 pp,
-      compiled PDF committed). Intro per §5 contract (MoE conceded first
+      incl. compiled PDF). Intro per §5 contract (MoE conceded first
       para), 2-corpus money table, ablations, sweep, energy, honest
       limitations incl. the PTB wrinkle, two-step plan in §7 of PAPER_NOTES.
-      Remaining: author block, venue pick, CFP conformance.
+      Remaining: venue pick + CFP conformance (author block filled).
 - [ ] Related work — VERIFIED (see PAPER_NOTES §11): Mikolov et al. 2011
       (ASRU) + Sundermeyer et al. 2012 (fixed-weight hybrid interpolation),
       Chang et al. 2015 (discriminative interpolation weights), Mathur et
@@ -116,8 +117,8 @@ _Last updated: 2026-09-09 (session in progress)_
 | MLP gate, train-trained (6.5 KB) | **99.7** | validated, stable |
 | MLP gate, valid-trained | 90–111 (seed-dependent) | high variance |
 | Hindsight oracle (5 experts) | **89.11** | bound |
-| GRU (8.2M, 6 epochs) | — | training now |
-| Hybrid (gate + GRU) | — | Phase 4 |
+| GRU expert (8.2M, epoch-11) | 146.85 aligned / 119.20 batchified | final (§3) |
+| Hybrid (gate + GRU, 6 experts) | **90.28** | §8 |
 
 ## Decisions log
 - 2026-09-10: **Recipe v2 (clip 1.0, Adam 3e-3, bs64/tsl32, 30ep) killed at
@@ -138,8 +139,8 @@ _Last updated: 2026-09-09 (session in progress)_
   equal steps. Checkpoint archived as `nn_gru_contextblind_v1.pt`.
 - 2026-09-10: **Recipe v2 launched:** EPOCHS 30, CLIP 1.0, BS 64/TSL 32,
   threads=4, cosine eta_min=1% LR, per-epoch `nn_gru_last.pt` snapshot
-  (epoch+opt+sched+best_pp) for clean resume. Launch protocol: run from a
-  USER terminal (sandbox reaps tool-launched background jobs):
+  (epoch+opt+sched+best_pp) for clean resume. Launch detached so the run
+  survives closed terminals:
   `python -u nn_expert.py 2>&1 | tee benchmarks/results/nn_train.log`
 - 2026-09-09: Added `progress.py` (stdlib-only watcher: process health,
   checkpoint age, ETA from epoch-1 calibration; `watch -n 60 python

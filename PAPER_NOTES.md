@@ -3,9 +3,9 @@
 **Purpose:** every fact, number, protocol rule and decision the paper needs,
 in one place, updated as results land. The live checklist remains
 [PROGRESS.md](PROGRESS.md); this file holds the *stable findings*.
-_Last updated: 2026-09-12 ~15:10 (**verdict + seed audit complete**: GATE(6)
-ensemble 90.24 / valid-trained ensemble 79.18 — fixed-λ 135.84 dominated at
-every seed; §8 has the audited table; next = PTB (Phase 5) + 5-gram fix)_
+_Last updated: 2026-09-13 (two-corpus verdict, seed audits, cost harness all
+complete — §8–§10; workshop draft in `paper/`; two-step publication plan in
+§7)_
 
 ---
 
@@ -74,7 +74,7 @@ our trigram (292.3) — must be fixed or explicitly justified before submission.
 - Also measured: bs64/tsl32 is ~40% SLOWER per epoch than bs32/tsl64 on CPU
   (thread-sync overhead on small GRU cell ops) despite 4 threads.
 
-## 3. Recipe v3 (current) — spec & trajectory
+## 3. Recipe v3 (final expert) — spec & trajectory
 
 Adam 1e-3 · 1-epoch linear warmup (980 steps) then cosine to 1% LR ·
 clip 1.0 · bs32/tsl64 (2,048 tok/step) · 30 epochs · seed 42, deterministic ·
@@ -110,8 +110,8 @@ V = 28,715 (trigram w2i + eos), 8.2M params.
 | 23 | 50.4 | 170.91 | 1.46e-4 | 21.2 |
 | 24 | 49.5 | 171.81 | 1.11e-4 | 21.4 |
 
-**STOP DECISION 2026-09-12 ~12:05 (after ep24, user-approved): training
-halted; epoch-11 checkpoint (162.34) is the final expert.** Rationale: the
+**STOP DECISION (2026-09-12, after ep24): training halted by decision;
+epoch-11 checkpoint (162.34) is the final expert.** Rationale: the
 deep-anneal revival failed — valid RISING through the endgame (162.3 → 171.8
 across ep11-24, +1/epoch even at LR 1.1e-4) while train keeps falling
 (53.7 → 49.5); reclaiming 9.5 PP in the last 6 epochs against that trend is
@@ -132,7 +132,7 @@ validation-optimal checkpoint occurred at epoch 11."
   scoring was added to --score-only (the 6-expert gate needs GRU votes on
   train positions).
 
-**Epoch-20 checkpoint (policy B formally fired): conditions met (no gain in
+**Epoch-20 review (policy B formally fired): conditions met (no gain in
 4 epochs, LR < 3.5e-4). DECISION: continue to 30 anyway.** Rationale: (a)
 best-by-valid is banked — continuation is free-option; (b) remaining cost is
 bounded (~3.9 h); (c) the deep-anneal epochs (25-30, LR < 1.5e-4) are the
@@ -141,7 +141,7 @@ the 30-epoch curve the recipe specifies; (d) if revival fails, the paper
 reports it honestly — "mid-run best survived the anneal" is itself a
 findings-grade observation about this recipe at this scale.
 
-**Stop decision 2026-09-11 ~20:15 (after ep15):** CONTINUE to 30. Policy B
+**Stop decision (2026-09-11, after ep15):** CONTINUE to 30. Policy B
 not fired (LR 5.3e-4 > 3.5e-4 threshold — anneal endgame has not begun).
 Valid creep during the hot phase is the textbook cosine pattern; the deep
 anneal (last ~5 epochs, LR < 1.5e-4) typically reclaims 10-25 PP. The
@@ -149,18 +149,15 @@ best-by-valid checkpoint (162.34 @ep11) is immutable once recorded, so
 continuation is free-option value: it can only improve the final artifact,
 never worsen it. Re-assess at epoch ~20-22 if valid still > ~160.
 
-**Incident log (same root cause, twice — Codespace idle-timeout kills the
-container after 30 min of editor disconnect):**
-- 2026-09-11 ~18:12: container stopped mid-epoch-14 (first v3 night not
-  affected — this hit the resumed run); rebooted 19:12; resumed from ep13.
-- 2026-09-11 ~23:00 → 09-12 11:32: overnight stop mid-epoch-22 after VS Code
-  closed ~22:30 with timeout still at default; rebooted on reopen; relaunched
-  11:54 — `resuming: epoch 21/30, best valid PP so far 162.34`.
-- Loss each time: one partial epoch. Fix that actually prevents this: raise
-  the idle timeout to 240 min (github.com → Settings → Codespaces) — STILL
-  NOT DONE as of 09-12 11:56. Recovery is otherwise routine (§6 playbook).
-
-**(append epochs 4+ here as they land)**
+**Incident log (root cause both times: the Codespace idle timeout stops the
+container ~30 min after the editor disconnects):**
+- 2026-09-11 (daytime): stopped mid-epoch-14; resumed from ep13.
+- 2026-09-11 → 09-12 (overnight): stopped mid-epoch-22; relaunched next
+  morning — `resuming: epoch 21/30, best valid PP so far 162.34`.
+- Loss each time: one partial epoch. Mitigations: raise the idle timeout in
+  GitHub settings (Settings → Codespaces), and `scripts/auto_resume.sh`
+  (wired via the devcontainer `postStartCommand`) now relaunches an
+  interrupted run automatically whenever the container restarts.
 
 ## 4. Protocol & alignment rules (must not drift)
 
@@ -229,22 +226,23 @@ container after 30 min of editor disconnect):**
 ## 6. Artifact map
 
 - Scripts: `mixer_lm.py` `mixer_cli.py` `gate_lm.py` `gate_lm2.py`
-  `gate_lm3.py` `gate_lm4.py` `nn_expert.py` **`gate_hybrid.py` (Phase 4,
-  mock-dry-run passed)** **`seed_audit.py` (3-seed ±sd + ensemble rows)**
+  `gate_lm3.py` `gate_lm4.py` `nn_expert.py` **`gate_hybrid.py` (Phase 4:
+  6-expert money table)** **`seed_audit.py` (3-seed ±sd + ensemble rows)**
   **`hybrid_cli.py` (interactive tester for the trained stack — suggest/
-  complete/observe/reset REPL + one-shot mode; first run trains + caches
-  the h=128 gate to `gate_mlp_h128.npz`, valid PP 94.41 = money-table
-  config ✓)** `progress.py` (watcher; writes
+  complete/cloze/why REPL + one-shot modes; builds and caches the h=128
+  gate on first use, valid PP 94.41, matching the money-table config)**
+  `progress.py` (watcher; writes
   `benchmarks/results/.progress_state.json`)
 - Caches: `benchmarks/results/gate_{train,valid,test}.npz`,
   `gold_streams.pkl`, `beast_trigram.pkl`
 - Checkpoints: `nn_gru_last.pt` (resume), `nn_gru_best.pt` (best-by-valid),
-  `nn_gru_contextblind_v1.pt` (archived v1, keep for the paper's honesty
-  section), `nn_logp_{valid,test}.npy` (STALE = v1 scores until re-scored)
-- Logs: `benchmarks/results/nn_train.log`; launch protocol (user terminal):
-  `setsid nohup python -u nn_expert.py > benchmarks/results/nn_train.log
-  2>&1 < /dev/null &`
-- **Ops playbook (verified 2026-09-11):** the trainer is terminal-detached
+  `nn_gru_contextblind_v1.pt` (archived v1, kept for the paper's honesty
+  section), `nn_logp_{train,valid,test}.npy` (regenerated from the ep11
+  expert; lengths asserted)
+- Logs: `benchmarks/results/nn_train.log`; detached launch protocol
+  (survives closed terminals): `setsid nohup python -u nn_expert.py >
+  benchmarks/results/nn_train.log 2>&1 < /dev/null &`
+- **Ops playbook (checked 2026-09-11):** the trainer is terminal-detached
   (`setsid`, TT = `?`) — closing VS Code does NOT kill it. The only threat is
   the Codespace idle timeout (default 30 min after editor disconnect; raise to
   240 min in GitHub settings): container stop kills the process. Recovery:
@@ -314,14 +312,14 @@ bibtex main && pdflatex main && pdflatex main`); (2) conference/Findings
 extension next cycle — add KenLM baseline (Heafield 2011), WikiText-103, and
 a tiny transformer expert; cite the workshop version, disclose overlap
 (~30%+ new material), pick a NON-archival workshop if possible.
-TODO before workshop submission: author block (name/affiliation/email),
-venue pick, abstract word-limit check against CFP, KenLM mention stays in
-limitations.
+TODO before workshop submission: pick the venue (non-archival preferred),
+check the CFP (page limit, anonymization, abstract deadline); KenLM stays
+in limitations for the workshop version.
 
 1. [x] GRU v3 trained/stopped by decision (ep24); expert = ep11 checkpoint
 2. [x] `python nn_expert.py --score-only` — aligned scores, assertions passed
 3. [x] `python gate_hybrid.py` → verdict recorded (§8): GATE 90.28 BEATS
-       fixed-λ 135.84; sanity anchor gate[5] 99.68 ≈ 99.7 ✓
+       fixed-λ 135.84; sanity anchor gate[5] 99.68 ≈ 99.7 (matches Phase 2)
 4. [x] 5-gram baseline anomaly FIXED — fair-tuned 294.16 (was 302.52
        artifact); strengthens the story (§10)
 5. [x] 3-seed ±sd on GATE(6) rows — WT-2: train 101.1±21.2 (ens 90.24),
@@ -355,7 +353,7 @@ limitations.
   fake. Anyone tuning this knob must bound it to ≲1.5. Explains why
   cross-corpus study grids stayed low.
 - Gate feature collection: rows 851,095 / 67,396 / 75,623 = exactly
-  Σ(len(s)−1) per split ✓ (alignment rule verified on PTB).
+  Σ(len(s)−1) per split (alignment rule verified on PTB).
 - GRU: recipe v3 verbatim (seed 42, Adam 1e-3, clip 1.0, bs32/tsl64,
   4 threads, cosine to 1%), warmup 442 steps (≈0.94 PTB epoch), V=9,645,
   3.3M params, 470 steps/epoch ≈ 6.6 min.
@@ -377,7 +375,7 @@ lag3 10% / uni 0%.
 | gate[5 experts] | 72.73 | 99.68 |
 | fixed-λ KN3+GRU | 92.65 (λ*=0.28) | 135.84 (λ*=0.21) |
 | static-α (6 experts) | 101.74 | 170.97 |
-| **GATE(6) train-trained** | **68.02** ✅ (h=24) | 90.28 (h=128) |
+| **GATE(6) train-trained** | **68.02** (h=24) | 90.28 (h=128) |
 | GATE(6) valid-trained | 63.93 | 77.49 |
 | oracle (6 experts) | 44.37 | 57.35 |
 
@@ -403,7 +401,7 @@ valid-trained gate (63.93) both beat gate[5]. The load-bearing comparison
 position. Non-monotonic h=64 PTB point (87.47 test) = single-seed basin;
 sd/ensemble context provided by the audit.
 
-**Phase 5 COMPLETE (2026-09-12 evening).** Two-corpus claim secured →
+**Phase 5 COMPLETE (2026-09-12).** Two-corpus claim secured →
 conference-short path (§5). Remaining: Phase 6 (5-gram fix + energy
 harness), Phase 7 writing per §5 positioning.
 
