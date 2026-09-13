@@ -16,7 +16,7 @@
 
 % TODO before submission: fill real name / affiliation / email.
 \title{Hedge: Tiny Learned Routing vs. Tuned Fixed Interpolation\\
-in Hybrid Language Models --- a Controlled Two-Corpus Study}
+in Hybrid Language Models --- A Controlled Two-Corpus Study}
 
 \author{Chiheb Nabil \\
   Remote Skills LTD \\
@@ -78,7 +78,7 @@ validation data.
 Penn Treebank \cite{marcus1993,mikolov2011}) under one aligned-scoring
 protocol:
 \begin{itemize}\itemsep0pt
-\item The learned router beats tuned fixed-$\lambda$ interpolation of the
+\item The learned router beats tuned fixed-weight interpolation of the
   same experts at \emph{every} tested seed on both corpora: 90.3 vs.\ 135.8
   (WT-2, $-33\%$) and 68.0 vs.\ 92.7 (PTB, $-27\%$).
 \item Static per-corpus mixing fails (171.0 and 101.7): the win comes from
@@ -105,7 +105,7 @@ by Kneser-Ney smoothing \cite{kneser1995} and its empirical study
 \paragraph{Fixed-weight neural/$n$-gram hybrids.} RNN and LSTM LMs have long
 been interpolated with Kneser-Ney models using heldout-tuned fixed weights
 \cite{mikolov2011,sundermeyer2012}; \citet{chang2015} discriminatively train
-a handful of context-dependent scaling factors. Our fixed-$\lambda$ baseline
+a handful of context-dependent scaling factors. Our fixed-interpolation baseline
 is exactly this family, and our question is whether learned per-token
 routing changes their conclusion at small footprint.
 
@@ -165,9 +165,9 @@ All systems score \emph{one shared gold token stream} per corpus under a
 fixed aligned protocol: exactly the positions the router sees
 ($\sum_s \mathrm{len}(s)-1$ per split), so every row of every table is
 comparable by construction. Model selection uses validation data only. The
-fixed-$\lambda$ baseline interpolates KN3 and the GRU with $\lambda$ from a
-201-point grid selected on validation ($\lambda^{*}{=}0.21$ WT-2,
-$0.28$ PTB)---it receives the same tuning budget the router's hidden-size
+fixed-interpolation baseline blends KN3 and the GRU with a single
+weight $\lambda$ chosen from a 201-point grid on validation
+($\lambda^{*} = 0.21$ on WT-2, $0.28$ on PTB)---it receives the same tuning budget the router's hidden-size
 search receives. Headline router rows are audited over three seeds and also
 reported as 3-router ensembles. The oracle assigns each position its best
 expert in hindsight; no realizable system can beat it.
@@ -183,8 +183,8 @@ system & WT-2 test PP & PTB test PP & footprint \\
 pure KN3 trigram & 296.2 & 165.2 & 21.4\,MB \\
 pure GRU (aligned) & 146.9 & 103.0 & 32.9\,MB \\
 5-expert gate (no GRU) & 99.7 & 72.7 & 21.4\,MB $+$ 6.5\,KB \\
-fixed-$\lambda$ KN3$+$GRU (tuned) & 135.8 & 92.7 & 54.3\,MB \\
-static-$\alpha$ (6 experts) & 171.0 & 101.7 & --- \\
+fixed-weight KN3$+$GRU (tuned) & 135.8 & 92.7 & 54.3\,MB \\
+static mixture (6 experts) & 171.0 & 101.7 & --- \\
 \textbf{learned router (6 experts)} & \textbf{90.3} & \textbf{68.0} & 54.3\,MB $+$ 2.6--13.5\,KB \\
 \quad 3-seed mean $\pm$ sd & 101.1 $\pm$ 21.2 & 74.6 $\pm$ 10.1 & \\
 \quad 3-router ensemble & 90.2 & 69.9 & \\
@@ -192,9 +192,9 @@ static-$\alpha$ (6 experts) & 171.0 & 101.7 & --- \\
 hindsight oracle (bound) & 57.4 & 44.4 & --- \\
 \bottomrule
 \end{tabular}
-\caption{The load-bearing comparison. Word-level test perplexity under one
-aligned protocol; the router and fixed-$\lambda$ use identical experts. The
-router beats fixed-$\lambda$ on both corpora at every seed (worst seeds:
+\caption{The primary comparison. Word-level test perplexity under one
+aligned protocol; the router and the fixed-weight baseline use identical
+experts. The router beats fixed interpolation on both corpora at every seed (worst seeds:
 125.6 vs.\ 135.8; 86.1 vs.\ 92.7). Batchified GRU evaluation, which scores
 easy sentence-initial targets, gives 119.2 (WT-2) and 86.3 (PTB); we cite
 the aligned numbers for comparability.}
@@ -204,10 +204,10 @@ the aligned numbers for comparability.}
 \paragraph{The router beats tuned fixed interpolation (Table
 \ref{tab:money}).} With identical experts and comparable tuning budgets,
 learned per-token routing cuts perplexity by 33\% (WT-2) and 27\% (PTB)
-relative to fixed $\lambda$. The dominance is seed-robust: the \emph{worst}
+relative to the fixed-weight baseline. The dominance is seed-robust: the \emph{worst}
 router seed still beats the tuned baseline on both corpora, and both
-ensembles dominate as well. Notably, fixed-$\lambda$ prefers a
-\emph{more} GRU-heavy mixture on PTB ($\lambda^{*}{=}0.28$ vs.\ 0.21) yet
+ensembles dominate as well. Notably, fixed interpolation prefers a
+\emph{more} GRU-heavy mixture on PTB ($\lambda^{*} = 0.28$ vs.\ $0.21$) yet
 still loses: a single global weight cannot reweight per position.
 
 \paragraph{Static mixing is not enough.} A learned \emph{static} mixture of
@@ -229,7 +229,7 @@ component; selection on validation picks the right one on both corpora.
 \paragraph{Cost of routing.} Best-of-3 causal wall-clock over 200 test
 sentences (batch-1, 4 CPU cores; energy = wall $\times$ 15\,W TDP proxy):
 full system 3.60\,ms/token (WT-2) and 1.02\,ms/token (PTB) versus
-3.34/1.21 for fixed-$\lambda$---the router's share is $\le$8\%. The GRU
+3.34/1.21 for fixed interpolation --- the router's share is $\le$8\%. The GRU
 dominates cost (5.09\,ms/token alone on WT-2); total footprint is 68.7\,MB
 (WT-2) / 28.7\,MB (PTB).
 
@@ -266,8 +266,8 @@ incorporating them is in preparation and will cite this one.
 
 Every number above regenerates from the released repository with one
 command per stage per corpus (data $\rightarrow$ gold streams $\rightarrow$
-trigram $\rightarrow$ GRU $\rightarrow$ gate features $\rightarrow$ money
-table $\rightarrow$ seed audit), with a corpus environment variable
+trigram $\rightarrow$ GRU $\rightarrow$ gate features $\rightarrow$ main
+results table $\rightarrow$ seed audit), with a corpus environment variable
 switching all artifact paths. Negative results (a decorative ``novel'' prior
 in the base repository; a 5-gram baseline artifact we correct from 302.5 to
 294.2, still $\approx$the trigram) are documented and reproducible.
