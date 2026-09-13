@@ -1,0 +1,18 @@
+loading splits ...
+  experts per position: 6  (kn3, lag2, cache, lag3, uni, gru)
+== the money table (WT-2 test, 217,004 aligned positions) ==
+  pure GRU                           PP=   146.85  [32.9 MB fp32 / 16.4 fp16]
+  pure KN3 (anchor)                  PP=   296.23  [21.4 MB counts]
+  gate[5 experts]                    PP=    99.68  [21.4 MB + gate 6.5 KB]
+  fixed-lambda KN3+GRU               PP=   135.84  [lambda*=0.21 on valid, 21.4+32.9 MB]
+  static-alpha (6 experts)           PP=   170.97  [alpha kn3 0.68 lag2 0.00 cache 0.00 lag3 0.09 uni 0.00 gru 0.23]
+    [gate h=24: valid PP 148.49]
+    [gate h=64: valid PP 96.51]
+    [gate h=128: valid PP 94.41]
+    [gate h=256: valid PP 123.95]
+  GATE hybrid (6 experts)            PP=    90.28  [21.4 MB + gate 13.5 KB + 32.9 MB]
+  GATE hybrid, valid-trained         PP=    77.49  [fair-data control]
+  oracle (6 experts)                 PP=    57.35  [bound]
+== verdict ==
+  gate vs oracle gap: +32.93 PP (57.4%)
+  GATE BEATS fixed-lambda (90.28 < 135.84) — load-bearing claim survives on WT-2

@@ -1,0 +1,4 @@
+  trained 5-gram in 17.3s
+  tune: 30 combos -> scale=1.15 z=0.1 adaptive=False
+  -> BEAST 5-gram (fair tune): PP=294.2 top1=19.2% top3=32.9% train=17.26s size=102.7MB
+  corrected 5-gram: test PP 294.16 (was 302.52 frozen-scale)

@@ -1,0 +1,5 @@
+== gate-size sweep: WT-2, GATE(6) train-trained, 217,004 test positions ==
+  h= 24  gate   2.6 KB   valid  148.49   test  144.06
+  h= 64  gate   6.8 KB   valid   96.51   test   92.17
+  h=128  gate  13.5 KB   valid   94.41   test   90.28
+  h=256  gate  27.0 KB   valid  123.95   test  120.46

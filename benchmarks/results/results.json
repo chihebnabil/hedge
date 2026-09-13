@@ -164,6 +164,21 @@
       "top3_accuracy": 0.3237774418904721,
       "perplexity": 378.40211808565033,
       "valid_perplexity": 375.15365488270453
+    },
+    {
+      "model": "BEAST 5-gram (fair tune)",
+      "engine": "beast(n=5)",
+      "train_seconds": 17.26,
+      "model_bytes": 102668544,
+      "model_bytes_compressed": 0,
+      "suggestion_ms": 0.7181300033334992,
+      "note": "same grid+subsample as trigram: scale=1.15, z=0.1, adaptive=False",
+      "tokens": 217004,
+      "eval_seconds": 80.54723367000042,
+      "top1_accuracy": 0.19203332657462535,
+      "top3_accuracy": 0.32856537206687436,
+      "perplexity": 294.1564071384182,
+      "valid_perplexity": 283.4786432737634
     }
   ]
 }

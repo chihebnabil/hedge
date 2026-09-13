@@ -1,0 +1,9 @@
+building lag-2 / lag-3 bigram experts ...
+== energy harness: WT-2, 200 test sentences, lam*=0.21, TDP proxy 15 W ==
+  kn3          wall   0.004 ms/tok   cpu   0.004 ms/tok   ~ 0.053 mJ/tok   (n=5,115)
+  mixer5       wall   0.011 ms/tok   cpu   0.011 ms/tok   ~ 0.160 mJ/tok   (n=5,115)
+  gru          wall   5.089 ms/tok   cpu  17.136 ms/tok   ~76.331 mJ/tok   (n=5,115)
+  fixed-lam    wall   3.340 ms/tok   cpu  12.771 ms/tok   ~50.097 mJ/tok   (n=5,115)
+  gate6 (full) wall   3.597 ms/tok   cpu  13.646 ms/tok   ~53.955 mJ/tok   (n=5,115)
+
+  sizes: tri pickle 21.4 MB | lag2 6.9 MB | lag3 7.4 MB | cache+uni 0.3 MB | gate 13.0 KB | GRU 32.7 MB fp32

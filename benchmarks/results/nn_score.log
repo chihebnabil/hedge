@@ -1,0 +1,9 @@
+score-only: loaded best checkpoint, valid PP=162.16
+V=28715  train tok=2,008,000  steps/epoch=980  threads=4  params=8.2M
+best model valid PP=161.86
+saved nn_logp_train.npy  n=1,846,068 (== gate rows)
+saved nn_logp_valid.npy  n=193,222 (== gate rows)
+saved nn_logp_test.npy  n=217,004 (== gate rows)
+pure-GRU test PP (next step evaluates it against the gate npz):
+  119.20
+done in 1231s
