@@ -39,37 +39,48 @@ _Last updated: 2026-09-09 (session in progress)_
       90.0 was a lucky seed. **Stable honest number: 99.7 (train-trained).**
 - [x] Verified: gate at ~99.7 vs hindsight oracle 89.1 (≈12% gap)
 
-### Phase 3 — The neural expert 🔄 IN PROGRESS
-- [x] torch 2.14.0+cpu installed
-- [x] `nn_expert.py`: GRU 2×256, tied embeddings, 8.2M params, V=28,715
-- [x] Bug fixed: batch orientation (batch_first=True) + chunk-edge crashes
-      (first launch learned from scrambled text ~35 min, crashed, no checkpoint
-      saved — clean restart)
-- [ ] GRU training 6 epochs on WT-2 — **moved to GitHub Codespaces**
-      (local run killed before epoch 1 finished; no checkpoint existed;
-      devcontainer auto-installs numpy/torch-CPU; script is seed-deterministic,
-      so Codespace training reproduces the identical model)
-- [ ] Aligned per-position log-probs saved (nn_logp_valid.npy / nn_logp_test.npy)
-      with length assertions vs gate npz rows (193,222 / 217,004)
+### Phase 3 — The neural expert ✅ DONE (stopped by decision)
+- [x] GRU recipe v3 (Adam 1e-3, warmup+cosine, clip 1.0): trained through
+      ep24 across two idle-timeout interruptions (clean resumes both times);
+      valid crept 162.3 → 171.8 through the anneal — revival failed, so
+      training STOPPED by decision; final expert = ep11 checkpoint
+      (valid 162.16 batchified / test 119.20 batchified / 146.85 aligned)
+- [x] Aligned per-position log-probs saved (train/valid/test) with length
+      assertions (1,846,068 / 193,222 / 217,004) — all green
 
-### Phase 4 — The money table ⬜ PENDING (unblocks on Phase 3)
-- [ ] `gate_hybrid.py`: GRU = expert #7 → retrain gate (minutes)
-- [ ] **Fixed-λ interpolation baseline** (Sak 2013 / Levit 2023 style):
-      best λ over grid for {KN3+GRU} AND best static-α over all 6 experts
-- [ ] The table: pure GRU | 5 old experts | fixed-λ classic | our gate hybrid | oracle
-- [ ] Footprint accounting per row (counts MB + gate KB + GRU MB, fp32/fp16)
-- [ ] Verdict recorded honestly (either outcome is a paper path)
+### Phase 4 — The money table ✅ DONE (2026-09-12)
+- [x] `gate_hybrid.py`: GRU = 6th expert; staleness guard; mock dry-run
+- [x] Fixed-λ KN3+GRU baseline (λ*=0.21 on valid) + static-α over 6 experts
+- [x] **The table: GATE(6) 90.28 BEATS fixed-λ 135.84 (−45.6 PP)**;
+      hybrid < gate[5] 99.68 < pure GRU 146.85; oracle 57.35; footprint per
+      row (counts 21.4 MB + gate 13.5 KB + GRU 32.9 MB). Full table +
+      number-hygiene notes: PAPER_NOTES.md §8
+- [x] Verdict recorded honestly — conference path live; remaining: 3-seed,
+      PTB, energy numbers (Phase 5-6)
 
-### Phase 5 — Second corpus (PTB) ⬜ PENDING
-- [ ] Download PTB (standard Mikolov split), build gold streams + trigram pickle
-- [ ] Rebuild 5 experts, collect gate data, train PTB GRU (vocab ~10k → faster)
-- [ ] Repeat Phase 4 table on PTB
+### Phase 5 — Second corpus (PTB) ✅ COMPLETE (2026-09-12 evening)
+- [x] Download PTB (standard Mikolov split), build gold streams + trigram pickle
+- [x] Rebuild 5 experts, collect gate data, train PTB GRU (recipe v3 verbatim,
+      30/30 epochs, best valid 123.6 @ep27; aligned scores exact-match rows)
+- [x] Phase 4 table on PTB → **VERDICT REPLICATES: GATE(6) 78.81 beats
+      fixed-λ 92.65 (−15%); worst seed 88.92 still beats fixed-λ;
+      static-α 101.9 dominated; ensembles 80.92 / 65.37.** Honest wrinkle:
+      train-trained GATE(6) < gate[5] on PTB (overfits smaller corpus) —
+      report, doesn't touch the load-bearing claim. Full numbers: see
+      PAPER_NOTES.md §9.
 
-### Phase 6 — Ablations & robustness ⬜ PENDING
-- [ ] Ablations on both corpora (votes/evidence/both; gate-size sweep)
-- [ ] 3-seed ±sd for headline rows
-- [ ] Cross-check: does the gate beat fixed-λ? (the paper's load-bearing claim)
-- [ ] Energy/latency harness: ms/token + CPU-time×TDP joule proxy, stated method
+### Phase 6 — Ablations & robustness ✅ COMPLETE (2026-09-12)
+- [x] Gate-size sweep on both corpora (h=24/64/128/256; optima: WT-2 h=128
+      13.5 KB, PTB h=24 2.6 KB — valid selection picks right one; table in
+      PAPER_NOTES §10; PTB money table updated to GATE 68.02 @2.6 KB)
+- [x] 3-seed ±sd for headline rows (both corpora; fixed-λ dominated at
+      every seed everywhere)
+- [x] Cross-check: gate beats fixed-λ on BOTH corpora — load-bearing
+      claim confirmed (§8, §9)
+- [x] 5-gram baseline fixed: fair-tuned 294.16 (was 302.52 tuning artifact)
+- [x] Energy/latency harness (benchmarks/energy_harness.py): full hybrid
+      3.6 ms/tok WT-2 / 1.0 ms/tok PTB on 4 CPU cores; gate overhead ≈8%
+      or less; sizes 69 MB / 29 MB. Tables in PAPER_NOTES §10
 
 ### Phase 7 — Write-up ⬜ PENDING
 - [ ] Intro / method / tables / honest limitations
@@ -98,6 +109,40 @@ _Last updated: 2026-09-09 (session in progress)_
 | Hybrid (gate + GRU) | — | Phase 4 |
 
 ## Decisions log
+- 2026-09-10: **Recipe v2 (clip 1.0, Adam 3e-3, bs64/tsl32, 30ep) killed at
+  epoch 1.** Train PP 1417 (clip fix works — context learning resumed) but
+  valid PP exploded to ~1e9: no warmup + hot LR blew up the tied-embedding
+  decoder (max|logit| ≈ 10 after 980 steps; 92% of valid tokens at
+  logp < -15). bs64/tsl32 was also ~40% SLOWER per epoch than bs32/tsl64
+  (thread-sync overhead on small GRU cell ops). Snapshot discarded.
+- 2026-09-10: **Recipe v3:** Adam 1e-3, 1-epoch linear warmup then cosine to
+  1% LR, clip 1.0, bs32/tsl64 (known pace), 30 epochs, per-epoch canary
+  print (lr, max|logit|). Fresh start (seed 42, deterministic).
+- 2026-09-10: **GRU recipe v1 declared a negative result.** The 6-epoch run
+  (clip_grad_norm 0.25, cosine→0 over 5,880 steps) produced a context-blind
+  model: identical output distribution for any context, valid PP 917 / test
+  734 (≈ unigram floor 825). Root cause isolated by controlled 250-step probe:
+  global bias gradients eat the 0.25 norm budget and clip the recurrent
+  (context) pathway to zero — clip=1.0 shows context-KL 0.348 vs 0.001 at
+  equal steps. Checkpoint archived as `nn_gru_contextblind_v1.pt`.
+- 2026-09-10: **Recipe v2 launched:** EPOCHS 30, CLIP 1.0, BS 64/TSL 32,
+  threads=4, cosine eta_min=1% LR, per-epoch `nn_gru_last.pt` snapshot
+  (epoch+opt+sched+best_pp) for clean resume. Launch protocol: run from a
+  USER terminal (sandbox reaps tool-launched background jobs):
+  `python -u nn_expert.py 2>&1 | tee benchmarks/results/nn_train.log`
+- 2026-09-09: Added `progress.py` (stdlib-only watcher: process health,
+  checkpoint age, ETA from epoch-1 calibration; `watch -n 60 python
+  progress.py`). Future long runs (incl. PTB GRU) launch with
+  `python -u nn_expert.py 2>&1 | tee benchmarks/results/nn_train.log`
+  so progress survives closed terminals.
+- 2026-09-09: Fixed `score_aligned` in `nn_expert.py` (pre-training bug):
+  the old keep-mask dropped only eos targets, yielding W-1 rows instead of
+  the gate's W-S rows. Now drops sentence-initial targets too; mask verified
+  on real gold streams to produce exactly 193,222 / 217,004 rows. Added
+  `--score-only` flag (re-score a checkpoint without retraining — the
+  in-flight training run still carries the old code, so its end-of-run
+  .npy outputs must be regenerated via `python nn_expert.py --score-only`)
+  and length assertions before each np.save.
 - 2026-09-09: Project renamed **Hedge** (after the online expert-prediction
   algorithm family; "one tamer, many beasts"). Repo: chihebnabil/hedge
 - 2026-09-09: GRU training continues in GitHub Codespaces; repo ships
@@ -118,8 +163,11 @@ _Last updated: 2026-09-09 (session in progress)_
 - Seed variance on small-data gate training — always report ≥3 seeds
 
 ## Where things live
+- **Paper dossier (stable findings, negative results, protocol, decision
+  tree, paper TODO): [PAPER_NOTES.md](PAPER_NOTES.md) — keep it current**
 - Scripts: `mixer_lm.py`, `mixer_cli.py`, `gate_lm.py`, `gate_lm2.py`,
-  `gate_lm3.py`, `gate_lm4.py`, `nn_expert.py`
+  `gate_lm3.py`, `gate_lm4.py`, `gate_hybrid.py`, `nn_expert.py`,
+  `progress.py`
 - Data caches: `benchmarks/results/gate_{train,valid,test}.npz` (per-position
   expert votes + evidence), `gold_streams.pkl`, `beast_trigram.pkl`
 - Training artifacts: `benchmarks/results/nn_gru_best.pt` (+ `nn_logp_*.npy`
