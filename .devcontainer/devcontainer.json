@@ -6,6 +6,7 @@
     "memory": "16gb"
   },
   "postCreateCommand": "pip install -r requirements.txt && pip install torch --index-url https://download.pytorch.org/whl/cpu",
+  "postStartCommand": "bash scripts/auto_resume.sh || true",
   "remoteEnv": {
     "PYTHONUNBUFFERED": "1"
   },

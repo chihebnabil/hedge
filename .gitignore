@@ -6,10 +6,15 @@ __pycache__
 
 # large data & artifacts (rebuild with the scripts; see README)
 data/
-benchmarks/results/*.pkl
-benchmarks/results/*.npz
-benchmarks/results/*.npy
-benchmarks/results/*.pt
+*.pkl
+*.npz
+*.npy
 *.pt
+
+# transient watcher state / noisy logs
+.progress_state.json
+**/.progress_state.json
+**/watch.log
+
 opencode/
 .opencode/
