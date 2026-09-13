@@ -18,3 +18,10 @@ data/
 
 opencode/
 .opencode/
+
+# latex build artifacts (PDF is committed)
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out

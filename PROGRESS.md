@@ -83,7 +83,11 @@ _Last updated: 2026-09-09 (session in progress)_
       or less; sizes 69 MB / 29 MB. Tables in PAPER_NOTES §10
 
 ### Phase 7 — Write-up ⬜ PENDING
-- [ ] Intro / method / tables / honest limitations
+- [x] Draft written: `paper/main.tex` + `references.bib` (ACL style, 4 pp,
+      compiled PDF committed). Intro per §5 contract (MoE conceded first
+      para), 2-corpus money table, ablations, sweep, energy, honest
+      limitations incl. the PTB wrinkle, two-step plan in §7 of PAPER_NOTES.
+      Remaining: author block, venue pick, CFP conformance.
 - [ ] Related work — VERIFIED (see PAPER_NOTES §11): Mikolov et al. 2011
       (ASRU) + Sundermeyer et al. 2012 (fixed-weight hybrid interpolation),
       Chang et al. 2015 (discriminative interpolation weights), Mathur et
@@ -93,7 +97,9 @@ _Last updated: 2026-09-09 (session in progress)_
       2006; anchors: Chen & Goodman 1999, Jelinek 1980, Merity 2017,
       Zaremba 2014. DROPPED as unverifiable: Sak 2013, Levit 2023,
       Qin 2023, Zhong 2025.
-- [ ] Repo release hygiene (scripts reproducible top-to-bottom)
+- [x] Repo release hygiene: MIT LICENSE + base-repo attribution; binaries
+      gitignored w/ regen commands in README; verified bibliography (§11);
+      23 base tests green; auto-resume watchdog wired.
 
 ---
 

@@ -308,6 +308,16 @@ wanted (table re-run costs ~40 min via --score-only + gate_hybrid).
 
 ## 7. Paper TODO (order matters)
 
+**Two-step publication plan (locked 2026-09-13):** (1) workshop paper NOW —
+drafted in `paper/` (ACL style, compiles to 4 pp + refs; `pdflatex main &&
+bibtex main && pdflatex main && pdflatex main`); (2) conference/Findings
+extension next cycle — add KenLM baseline (Heafield 2011), WikiText-103, and
+a tiny transformer expert; cite the workshop version, disclose overlap
+(~30%+ new material), pick a NON-archival workshop if possible.
+TODO before workshop submission: author block (name/affiliation/email),
+venue pick, abstract word-limit check against CFP, KenLM mention stays in
+limitations.
+
 1. [x] GRU v3 trained/stopped by decision (ep24); expert = ep11 checkpoint
 2. [x] `python nn_expert.py --score-only` — aligned scores, assertions passed
 3. [x] `python gate_hybrid.py` → verdict recorded (§8): GATE 90.28 BEATS
