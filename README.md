@@ -119,11 +119,13 @@ whenever the Codespace container restarts.
   gate. The claim is about the **tiny-footprint regime** (on-device,
   offline settings) and about *measuring* what learned routing extracts —
   not about competing with large transformers.
-- Novelty positioning: mixture-of-experts routing is classical (Jacobs &
-  Jordan 1991; Shazeer 2017); this work tests whether *learned per-token*
-  routing changes the conclusion of the *fixed-weight* hybrid interpolation
-  literature (Mikolov-era) in the small-footprint regime. See §5 of
-  [PAPER_NOTES.md](PAPER_NOTES.md) for the locked positioning contract.
+- Novelty positioning: mixture-of-experts routing is classical (Jacobs,
+  Jordan, Nowlan & Hinton 1991; Shazeer et al. 2017); this work tests whether
+  *learned per-token* routing changes the conclusion of the *fixed-weight*
+  hybrid interpolation literature (Mikolov et al. 2011; Sundermeyer et al.
+  2012) in the small-footprint regime. See §5/§11 of
+  [PAPER_NOTES.md](PAPER_NOTES.md) for the locked positioning contract and
+  the verified bibliography.
 - CPU-only training is a feature of the story (green computing), not a
   secret. Negative results are first-class citizens here (Phase 0, GRU
   recipe v1/v2, the unbounded-discount knob warning).

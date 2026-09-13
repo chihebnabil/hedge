@@ -84,10 +84,15 @@ _Last updated: 2026-09-09 (session in progress)_
 
 ### Phase 7 — Write-up ⬜ PENDING
 - [ ] Intro / method / tables / honest limitations
-- [ ] Related work: Sak 2013, Levit 2023, Mathur 2023 (PersonaLM), Qin 2023,
-      Zhong 2025 — hybrid interpolation & on-device personalization exist;
-      our lane = learned evidence-aware multi-expert routing + oracle-bound
-      measurement + footprint-matched fight
+- [ ] Related work — VERIFIED (see PAPER_NOTES §11): Mikolov et al. 2011
+      (ASRU) + Sundermeyer et al. 2012 (fixed-weight hybrid interpolation),
+      Chang et al. 2015 (discriminative interpolation weights), Mathur et
+      al. 2023 (PersonaLM, on-device personalization); lineage: Jacobs et
+      al. 1991 (4 authors!), Jordan & Jacobs 1994, Shazeer et al. 2017;
+      oracle bound: Freund & Schapire 1997 (Hedge), Cesa-Bianchi & Lugosi
+      2006; anchors: Chen & Goodman 1999, Jelinek 1980, Merity 2017,
+      Zaremba 2014. DROPPED as unverifiable: Sak 2013, Levit 2023,
+      Qin 2023, Zhong 2025.
 - [ ] Repo release hygiene (scripts reproducible top-to-bottom)
 
 ---
@@ -150,8 +155,9 @@ _Last updated: 2026-09-09 (session in progress)_
 - 2026-09-09: GRU trained for the **full 6 epochs** (quality over speed)
 - 2026-09-09: Target = **conference attempt** (2 corpora + energy numbers);
   fallback = workshop routing-analysis paper
-- 2026-09-09: New mandatory baseline: fixed-λ interpolation (literature: Sak/
-  Levit line). Gate must beat it or the claim shrinks honestly.
+- 2026-09-09: New mandatory baseline: fixed-λ interpolation (literature:
+  Mikolov 2011 / Sundermeyer 2012 fixed-weight hybrid line). Gate must beat
+  it or the claim shrinks honestly.
 - 2026-09-09: All training runs: detached process + per-epoch checkpoints +
   resumable (no more silent 20-minute grinds)
 
