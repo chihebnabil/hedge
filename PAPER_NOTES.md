@@ -331,8 +331,9 @@ profile, responsible-NLP checklist, final proofread.
 6. [x] Phase 5: PTB replication (§9) — **VERDICT REPLICATES: GATE 68.02
        beats fixed-λ 92.65; every-seed dominance; ensembles 69.86/65.37**
 7. [x] Phase 6: 5-gram fix + gate-size sweep + energy/latency harness (§10)
-8. [ ] Venue decision per §5 tree (conference path now CONFIRMED live);
-       Phase 7 write-up per §5 positioning
+8. [x] Venue decision: ARR October 2026 cycle (deadline Oct 12) → commit to
+       NAACL 2027 or COLING 2027 (Dec 23); extension → ACL 2027 Jan cycle;
+       TMLR backup. Anonymized copy ready in `paper/submission/`
 
 ## 9. Phase 5 — PTB replication (Mikolov split, COMPLETE)
 
