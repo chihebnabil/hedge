@@ -256,9 +256,12 @@ perplexity reduction from \emph{the same experts} that tuned fixed
 interpolation blends---and static mixing cannot. We take this as evidence
 that per-token routing, not parameter count, is where the small hybrid's
 headroom lives. The immediate extensions of this workshop study are a
-third larger corpus (WikiText-103) and a tiny transformer expert; an
-extended version incorporating them is in preparation and will cite this
-one.
+third larger corpus (WikiText-103), a tiny transformer expert, and
+selective expert activation: because our gate computes its GRU weight
+without reading the GRU's output, thresholding that weight runs the
+expensive expert on only 47--55\% of tokens for under half a point of
+perplexity --- a direct inference-cost lever. An extended version
+incorporating these is in preparation and will cite this one.
 
 \bibliography{references}
 

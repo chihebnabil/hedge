@@ -475,6 +475,35 @@ independently confirms the "classical n-gram scaling exhausted" finding.
 Added to the paper money table + limitations rewritten. Logs:
 `benchmarks/results/kenlm.log`, `benchmarks/results/ptb/kenlm.log`.
 
+### Selective expert activation — cost-quality frontier (2026-09-13, pre-submission add)
+
+**Motivation (oracle concentration):** the GRU is the best expert on only
+~43% of tokens (WT-2) / ~41% (PTB), and the selective-GRU oracle reaches
+FULL oracle PP while running on just 50% of positions (WT-2: 57.35 at 50%
+usage; PTB: 44.37 at 50%). The expensive expert's value is concentrated.
+
+**Realizable scheme (`benchmarks/selective_gru.py`):** the 6-expert gate's
+GRU weight alpha_gru(x) is computed from the 5 cheap votes + evidence
+only — it never reads the GRU's output — so it is a FREE, causal skip
+signal. Rule: consult the GRU iff alpha_gru >= tau; skipped tokens use the
+gate's renormalized cheap weights. Anchors reproduce exactly (6-gate
+90.28 / 68.02; 5-gate 99.68 / 72.73).
+
+| tau | WT-2 usage | WT-2 PP | PTB usage | PTB PP |
+|---|---|---|---|---|
+| 0 (always on) | 100% | 90.28 | 100% | 68.02 |
+| 0.02 | 46.7% | 90.69 | 54.7% | 68.22 |
+| 0.10 | 33.3% | 91.29 | 40.7% | 68.71 |
+| 0.50 | 16.9% | 93.78 | 21.8% | 70.72 |
+
+Reading: **~half the GRU compute for <=0.5 PP** on both corpora; at
+tau=0.50 the system runs the GRU on ~1/5 of tokens and still beats the
+5-expert gate (93.8 < 99.7; 70.7 < 72.7). Since the GRU dominates system
+cost (5.1 of 3.6 ms/tok class), tau~0.02 cuts total energy roughly in
+half at +0.45% PP. This is the bridge from the paper to LLM inference
+economics (skip-the-big-model tokens) and pillar #3 of the conference
+extension. Logs: `selective_gru.log` in both results dirs.
+
 **Phase 6 COMPLETE. Remaining: Phase 7 writing only.**
 
 ## 11. Related-work verification (2026-09-12)

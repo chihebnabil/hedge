@@ -58,6 +58,9 @@ Full hybrid: 3.6 ms/token (WT-2) / 1.0 ms/token (PTB) on 4 CPU cores
 (~280 tok/s interactive); the gate's share ≤8% vs fixed-λ — identical cost,
 −27% to −34% PP. Sizes: 69 MB (WT-2) / 29 MB (PTB) total.
 (`benchmarks/energy_harness.py`; method + tables in PAPER_NOTES §10.)
+**Selective activation:** the gate's GRU weight is computable before the
+GRU runs — thresholding it runs the GRU on only 47–55% of tokens for
+≤0.5 PP (`benchmarks/selective_gru.py`): ~half the energy at ~0.5% cost.
 
 ---
 
@@ -76,6 +79,7 @@ python seed_audit.py           # 3-seed ±sd + ensembles
 python benchmarks/gate_sweep.py                # gate size vs quality
 python benchmarks/energy_harness.py            # ms/token + joule proxy
 python benchmarks/kenlm_baseline.py            # toolkit n-gram baseline (needs lmplz)
+python benchmarks/selective_gru.py             # cost-quality frontier (skip GRU when confident)
 ```
 
 ## Reproduce from scratch
