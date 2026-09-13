@@ -25,3 +25,8 @@ paper/*.log
 paper/*.bbl
 paper/*.blg
 paper/*.out
+paper/submission/main.aux
+paper/submission/main.log
+paper/submission/main.bbl
+paper/submission/main.blg
+paper/submission/main.out

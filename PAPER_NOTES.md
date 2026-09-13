@@ -306,15 +306,18 @@ wanted (table re-run costs ~40 min via --score-only + gate_hybrid).
 
 ## 7. Paper TODO (order matters)
 
-**Two-step publication plan (locked 2026-09-13):** (1) workshop paper NOW —
-drafted in `paper/` (ACL style, compiles to 4 pp + refs; `pdflatex main &&
-bibtex main && pdflatex main && pdflatex main`); (2) conference/Findings
-extension next cycle — add KenLM baseline (Heafield 2011), WikiText-103, and
-a tiny transformer expert; cite the workshop version, disclose overlap
-(~30%+ new material), pick a NON-archival workshop if possible.
-TODO before workshop submission: pick the venue (non-archival preferred),
-check the CFP (page limit, anonymization, abstract deadline); KenLM stays
-in limitations for the workshop version.
+**Publication plan (updated 2026-09-13 after checking live venue pages):**
+EMNLP 2026 workshop deadlines have passed (Insights closed June 8), so the
+short paper goes to the **ARR October 2026 cycle (submission deadline
+October 12, 2026)** → reviews/meta-review by December 23 → commit to
+**NAACL 2027 or COLING 2027** (commitment deadline December 23, 2026; both
+accept 4-page short papers). Extension path unchanged: long paper with
+KenLM + WikiText-103 + transformer expert to **ACL 2027** (ARR January
+2027 cycle), citing the short version. Backup if reviews are weak: **TMLR**
+(rolling, no deadline). Anonymized, line-numbered submission copy lives in
+`paper/submission/` (review mode + masked repo footnote — regenerate from
+`paper/main.tex` after any edit). Remaining before Oct 12: ARR OpenReview
+profile, responsible-NLP checklist, final proofread.
 
 1. [x] GRU v3 trained/stopped by decision (ep24); expert = ep11 checkpoint
 2. [x] `python nn_expert.py --score-only` — aligned scores, assertions passed

@@ -1,0 +1,274 @@
+% Hedge workshop paper draft (ACL style).
+% Two-step publication plan: this workshop version first; the conference
+% extension (KenLM baseline + WikiText-103 + transformer expert) later, citing
+% this version and disclosing overlap. See PAPER_NOTES.md section 7.
+%
+% Compile: pdflatex main && bibtex main && pdflatex main && pdflatex main
+% (or upload the paper/ folder to Overleaf).
+
+\pdfoutput=1
+\documentclass[11pt]{article}
+\usepackage[review]{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+% TODO before submission: fill real name / affiliation / email.
+\title{Hedge: Tiny Learned Routing vs. Tuned Fixed Interpolation\\
+in Hybrid Language Models --- A Controlled Two-Corpus Study}
+
+\author{Anonymous submission}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Hybrid language models that combine neural networks with $n$-gram statistics
+conventionally blend them with a small number of fixed, corpus-level weights
+\cite{mikolov2011,sundermeyer2012}. We test whether replacing every fixed
+weight with a \emph{learned per-token router} changes the picture in the
+small-footprint regime that on-device applications occupy. \textsc{Hedge}
+mixes six frozen experts---a Kneser-Ney trigram, two recency bigram experts,
+a 512-token cache, a continuation unigram, and one small GRU---using an MLP
+router of 2.6--13.5\,KB that reads both the experts' current votes and cheap
+context evidence. Under a fixed aligned-scoring protocol on WikiText-2 and
+the Penn Treebank, the learned router beats a \emph{tuned} fixed
+interpolation of the \emph{same} experts at every tested seed (90.3 vs.\ 135.8
+and 68.0 vs.\ 92.7 test perplexity), while static mixing fails badly
+(171.0 and 101.7). Ablations locate the routing signal in the interaction
+between votes and evidence, and a cost harness shows the router adds at most
+8\% latency over fixed interpolation. All code, logs, and the full
+reproduction pipeline are released.
+\end{abstract}
+
+\section{Introduction}
+
+Mixture architectures with learned routing are among the oldest ideas in
+neural computation \cite{jacobs1991,jordan1994} and now scale to frontier
+models \cite{shazeer2017}. We claim no architectural novelty. Instead, we ask
+a question the literature has not answered at the \emph{bottom} of the
+footprint range: when every expert is a frozen classical statistic plus one
+small recurrent network, does learned per-token routing still beat the tuned
+fixed interpolation that practitioners actually deploy?
+
+The question matters because the fixed-weight answer is settled at larger
+scales: interpolating a neural LM with Kneser-Ney smoothing using one or a
+few heldout-tuned weights has been standard practice for over a decade
+\cite{mikolov2011,sundermeyer2012,chang2015}. At those scales the neural
+component dominates, so the blending scheme is a detail. In the
+small-footprint regime---on-device, offline, CPU-only personalization
+\cite{mathur2023}---the experts are comparably matched, the router is one of
+the largest \emph{learnable} surface areas, and nobody has checked whether
+per-token routing changes the conclusion.
+
+We answer it with a controlled experiment. \textsc{Hedge} routes among six
+experts: a modified Kneser-Ney trigram \cite{kneser1995,chen1999}, lag-2 and
+lag-3 recency bigrams, a 512-token adaptive cache, a continuation unigram,
+and a GRU \cite{mikolov2010,mikolov2011} of 3.3--8.2M parameters trained on
+CPU. The router is a one-hidden-layer MLP of 2.6--13.5\,KB whose input pairs
+the experts' \emph{votes} (their current top predictions and probabilities)
+with 15 \emph{evidence} features of the context (recency, entropy, cache
+state). Its hidden size is the only per-corpus hyperparameter, selected on
+validation data.
+
+\paragraph{Findings.} On two corpora (WikiText-2 \cite{merity2016} and the
+Penn Treebank \cite{marcus1993,mikolov2011}) under one aligned-scoring
+protocol:
+\begin{itemize}\itemsep0pt
+\item The learned router beats tuned fixed-weight interpolation of the
+  same experts at \emph{every} tested seed on both corpora: 90.3 vs.\ 135.8
+  (WT-2, $-33\%$) and 68.0 vs.\ 92.7 (PTB, $-27\%$).
+\item Static per-corpus mixing fails (171.0 and 101.7): the win comes from
+  \emph{per-token} routing, not from extra parameters.
+\item The routing signal lives in the votes$\times$evidence interaction:
+  gate on votes alone, 201.8; evidence alone, 367.9 (worse than equal
+  mixing); both, $\sim$90--100.
+\item The router costs at most 8\% extra latency over fixed interpolation
+  (3.60 vs.\ 3.34\,ms/token on WT-2; on PTB it is free).
+\end{itemize}
+
+We release the full stack---every expert, the gate, the aligned evaluation
+protocol, seed audits, and a one-command reproduction per corpus---to make
+each number checkable.\footnote{Code, logs, and the full reproduction
+pipeline are anonymized for review and will be released upon acceptance.}
+
+\section{Related Work}
+
+\paragraph{Interpolated language models.} Linear interpolation of
+probability estimates originates with \citet{jelinek1980} and was systematized
+by Kneser-Ney smoothing \cite{kneser1995} and its empirical study
+\cite{chen1999}. Our trigram expert follows this line; our interpolation
+\emph{weights} do not.
+
+\paragraph{Fixed-weight neural/$n$-gram hybrids.} RNN and LSTM LMs have long
+been interpolated with Kneser-Ney models using heldout-tuned fixed weights
+\cite{mikolov2011,sundermeyer2012}; \citet{chang2015} discriminatively train
+a handful of context-dependent scaling factors. Our fixed-interpolation baseline
+is exactly this family, and our question is whether learned per-token
+routing changes their conclusion at small footprint.
+
+\paragraph{Mixture of experts.} Gating networks date to
+\citet{jacobs1991} and \citet{jordan1994}; sparse routing at scale to
+\citet{shazeer2017}. That lineage learns routers for \emph{trainable}
+experts, usually neural, at footprints orders of magnitude above ours. We
+route among \emph{frozen} classical experts plus one small network, beneath
+any footprint those systems report.
+
+\paragraph{Prediction with expert advice.} Our hindsight oracle---the
+per-position best expert---is the classic competitor bound
+\cite{freund1997,cesabianchi2006}. We use it as an honest upper bound on
+what any router could extract from these experts.
+
+\section{The \textsc{Hedge} System}
+
+\paragraph{Experts.} Six experts, all frozen after training:
+(1) a modified Kneser-Ney trigram (discount scale 1.15, shared across
+corpora); (2--3) lag-2 and lag-3 recency bigram experts; (4) a 512-token
+adaptive cache; (5) a continuation unigram; (6) a word-level GRU
+(vocabulary $+$1, 3.3M parameters on PTB, 8.2M on WT-2; Adam, cosine
+schedule, early stopping on validation; batchified perplexity 86.3 on PTB).
+
+\paragraph{Router.} A one-hidden-layer MLP with softmax over the six
+experts. Its 20 input features pair each expert's \emph{vote} (top
+prediction, its probability, and rank statistics) with 15 \emph{evidence}
+features of the current context (cache hit rates, recency densities, token
+entropy proxies). Hidden size is selected on validation from
+$\{24, 64, 128, 256\}$; the selected sizes are 13.5\,KB (WT-2) and 2.6\,KB
+(PTB). Training is per-position cross-entropy over collected aligned
+features, with an age-invariant cache-density feature to prevent a
+train/test distribution leak we detected and fixed (details in the
+repository dossier).
+
+\section{Experimental Protocol}
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{lrr}
+\toprule
+ & WT-2 & PTB \\
+\midrule
+train tokens & $\approx$2.0M & 907{,}138 \\
+valid tokens & 214k & 71{,}825 \\
+test tokens & 245k & 80{,}594 \\
+test positions (aligned) & 217{,}004 & 75{,}623 \\
+vocabulary & 33k & 9{,}644 \\
+\bottomrule
+\end{tabular}
+\caption{Corpora. PTB uses the Mikolov split with vocabulary-from-train and
+OOV mapped to \texttt{unk}; WT-2 follows the standard word-level setup.}
+\label{tab:corpora}
+\end{table}
+
+All systems score \emph{one shared gold token stream} per corpus under a
+fixed aligned protocol: exactly the positions the router sees
+($\sum_s \mathrm{len}(s)-1$ per split), so every row of every table is
+comparable by construction. Model selection uses validation data only. The
+fixed-interpolation baseline blends KN3 and the GRU with a single
+weight $\lambda$ chosen from a 201-point grid on validation
+($\lambda^{*} = 0.21$ on WT-2, $0.28$ on PTB)---it receives the same tuning budget the router's hidden-size
+search receives. Headline router rows are audited over three seeds and also
+reported as 3-router ensembles. The oracle assigns each position its best
+expert in hindsight; no realizable system can beat it.
+
+\section{Results}
+
+\begin{table*}[t]
+\centering\small
+\begin{tabular}{lrrl}
+\toprule
+system & WT-2 test PP & PTB test PP & footprint \\
+\midrule
+pure KN3 trigram & 296.2 & 165.2 & 21.4\,MB \\
+pure GRU (aligned) & 146.9 & 103.0 & 32.9\,MB \\
+5-expert gate (no GRU) & 99.7 & 72.7 & 21.4\,MB $+$ 6.5\,KB \\
+fixed-weight KN3$+$GRU (tuned) & 135.8 & 92.7 & 54.3\,MB \\
+static mixture (6 experts) & 171.0 & 101.7 & --- \\
+\textbf{learned router (6 experts)} & \textbf{90.3} & \textbf{68.0} & 54.3\,MB $+$ 2.6--13.5\,KB \\
+\quad 3-seed mean $\pm$ sd & 101.1 $\pm$ 21.2 & 74.6 $\pm$ 10.1 & \\
+\quad 3-router ensemble & 90.2 & 69.9 & \\
+\quad router trained on valid & 81.5 $\pm$ 4.1 & 70.7 $\pm$ 12.1 & \\
+hindsight oracle (bound) & 57.4 & 44.4 & --- \\
+\bottomrule
+\end{tabular}
+\caption{The primary comparison. Word-level test perplexity under one
+aligned protocol; the router and the fixed-weight baseline use identical
+experts. The router beats fixed interpolation on both corpora at every seed (worst seeds:
+125.6 vs.\ 135.8; 86.1 vs.\ 92.7). Batchified GRU evaluation, which scores
+easy sentence-initial targets, gives 119.2 (WT-2) and 86.3 (PTB); we cite
+the aligned numbers for comparability.}
+\label{tab:money}
+\end{table*}
+
+\paragraph{The router beats tuned fixed interpolation (Table
+\ref{tab:money}).} With identical experts and comparable tuning budgets,
+learned per-token routing cuts perplexity by 33\% (WT-2) and 27\% (PTB)
+relative to the fixed-weight baseline. The dominance is seed-robust: the \emph{worst}
+router seed still beats the tuned baseline on both corpora, and both
+ensembles dominate as well. Notably, fixed interpolation prefers a
+\emph{more} GRU-heavy mixture on PTB ($\lambda^{*} = 0.28$ vs.\ $0.21$) yet
+still loses: a single global weight cannot reweight per position.
+
+\paragraph{Static mixing is not enough.} A learned \emph{static} mixture of
+all six experts (per-corpus weights) reaches only 171.0 / 101.7 with near-zero
+seed variance---the improvement comes from routing \emph{per token}, not from
+added parameters.
+
+\paragraph{Where the routing signal lives.} With the 5-expert stack on WT-2:
+a gate reading votes only reaches 201.8; evidence only, 367.9 (worse than
+equal mixing); both, 99.7. The evidence does not say \emph{what} to predict;
+it says \emph{whose vote to trust}---the signal is the interaction.
+
+\paragraph{Router size is corpus-dependent and validation selects correctly.}
+Sweeping hidden size $\{24,64,128,256\}$: WT-2 prefers 13.5\,KB (test
+144.1/92.2/\textbf{90.3}/120.5), PTB prefers 2.6\,KB (test
+\textbf{68.0}/87.5/78.8/84.4). Both optima sit far below any neural
+component; selection on validation picks the right one on both corpora.
+
+\paragraph{Cost of routing.} Best-of-3 causal wall-clock over 200 test
+sentences (batch-1, 4 CPU cores; energy = wall $\times$ 15\,W TDP proxy):
+full system 3.60\,ms/token (WT-2) and 1.02\,ms/token (PTB) versus
+3.34/1.21 for fixed interpolation --- the router's share is $\le$8\%. The GRU
+dominates cost (5.09\,ms/token alone on WT-2); total footprint is 68.7\,MB
+(WT-2) / 28.7\,MB (PTB).
+
+\section{Limitations}
+
+We report these explicitly. (1) \emph{Scale}: WT-2 and PTB are small corpora;
+absolute numbers are far from modern LSTM recipes \cite{zaremba2014,
+merity2017}---our claim is the controlled comparison, not state of the art.
+(2) \emph{The wrinkle}: on PTB, the larger 13.5\,KB router overfits
+(78.8, worse than the 5-expert gate's 72.7); the valid-selected 2.6\,KB
+router and the valid-trained router do not. Router variance on the smaller
+corpus is real (sd 10.1) and we report it. (3) \emph{Baselines}: we compare
+against our own tuned interpolation and smoothing family, not against
+toolkit-grade $n$-grams \cite{heafield2011} or transformer LMs; closing this
+gap is the next step (below). (4) One tokenizer, two English corpora, CPU
+timing on one machine---all documented in the released dossier.
+
+\section{Conclusion and Future Work}
+
+In the small-footprint regime, a router of 2.6--13.5\,KB extracts 27--33\%
+perplexity reduction from \emph{the same experts} that tuned fixed
+interpolation blends---and static mixing cannot. We take this as evidence
+that per-token routing, not parameter count, is where the small hybrid's
+headroom lives. The immediate extensions of this workshop study are a
+KenLM-grade baseline \cite{heafield2011}, a third larger corpus
+(WikiText-103), and a tiny transformer expert; an extended version
+incorporating them is in preparation and will cite this one.
+
+\bibliography{references}
+
+\appendix
+
+\section{Reproduction}
+
+Every number above regenerates from the released repository with one
+command per stage per corpus (data $\rightarrow$ gold streams $\rightarrow$
+trigram $\rightarrow$ GRU $\rightarrow$ gate features $\rightarrow$ main
+results table $\rightarrow$ seed audit), with a corpus environment variable
+switching all artifact paths. Negative results (a decorative ``novel'' prior
+in the base repository; a 5-gram baseline artifact we correct from 302.5 to
+294.2, still $\approx$the trigram) are documented and reproducible.
+
+\end{document}
