@@ -1,5 +1,10 @@
 # Benchmark results (WikiText-2)
 
+> Scope: this file is the **classical n-gram baseline table of the base repo**.
+> The hybrid/router results (and the invalidation of the first version of them)
+> live in [PAPER_NOTES.md](PAPER_NOTES.md) §0; per-run logs are committed under
+> `benchmarks/results/`.
+
 Test tokens: 217,004 · one shared gold token stream · one harness loop for every model · trigram order unless noted · pure-stdlib models, single core
 
 Context: all rows are classical n-gram models. The best widely reported

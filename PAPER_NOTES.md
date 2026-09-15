@@ -311,14 +311,27 @@ container ~30 min after the editor disconnects):**
 
 ## 6. Artifact map
 
-- Scripts: `mixer_lm.py` `mixer_cli.py` `gate_lm.py` `gate_lm2.py`
-  `gate_lm3.py` `gate_lm4.py` `nn_expert.py` **`gate_hybrid.py` (Phase 4:
-  6-expert money table)** **`seed_audit.py` (3-seed ±sd + ensemble rows)**
-  **`hybrid_cli.py` (interactive tester for the trained stack — suggest/
-  complete/cloze/why REPL + one-shot modes; builds and caches the h=128
-  gate on first use, valid PP 94.41, matching the money-table config)**
-  `progress.py` (watcher; writes
-  `benchmarks/results/.progress_state.json`)
+- Scripts (post-audit, 2026-09-15): `mixer_lm.py` (experts + `top1()`),
+  `mixer_cli.py`, **`gate_lm.py` (`FeatMaker` = the causal feature contract;
+  `--collect` rebuilds the npz caches)**, `gate_lm2.py` (ablations),
+  `gate_lm3.py` (`age_invariant` is now a pass-through), `gate_lm4.py`,
+  `nn_expert.py`, **`gate_hybrid.py` (main table + `fair_router` +
+  `assert_no_label_leak`; writes `gate_fair.json`, `gate_fair_h<H>.npz`,
+  `gate_mlp_h<H>.npz`, `money_table.log`)**, **`seed_audit.py`**,
+  **`hybrid_cli.py` (interactive tester; trains/caches the valid-tuned
+  router on first use — the v1 note here about an h=128 gate with valid PP
+  94.41 is stale and belongs to the leaky protocol)**, `progress.py`
+- Benchmarks/audits: `benchmarks/{normalization_audit,router_diagnostic,
+  energy_harness,selective_gru,footprint_meta,kenlm_baseline,fix_5gram,
+  gate_sweep,run_benchmark,ptb_setup,cross_corpus}.py`,
+  `scripts/run_paper_pipeline.sh` (one command per corpus),
+  `scripts/make_submission.py` (generates `paper/submission/`),
+  `scripts/auto_resume.sh`
+- Tests: `tests/test_gate.py` (the normalization/leak guards),
+  `tests/test_baselines.py` (sum-to-one for the n-gram baselines),
+  `tests/test_model.py`. Run all: `python -m unittest tests.test_gate
+  tests.test_baselines tests.test_model` (33 tests; `discover` does not work —
+  `tests/` has no `__init__.py`)
 - Caches: `benchmarks/results/gate_{train,valid,test}.npz`,
   `gold_streams.pkl`, `beast_trigram.pkl`
 - Checkpoints: `nn_gru_last.pt` (resume), `nn_gru_best.pt` (best-by-valid),
@@ -571,7 +584,13 @@ train stream Σlen ✓).
 |---|---|---|---|
 | 3-gram | 257.32 | 146.34 | 57.2 MB arpa / 26.2 MB |
 | 4-gram | 251.96 | 139.79 | 126.3 / 56.7 MB arpa |
-| 5-gram | **250.89** | **138.42** | **53.8 MB / 23.1 MB** |
+| 5-gram | **250.89** | **138.42** | ~~53.8 MB / 23.1 MB~~ (see note) |
+
+> ⚠️ Footprint note (2026-09-15): the perplexities in this table stand and
+> re-verify (`kenlm.log`), but the MB column does not: it was a `build_binary`
+> trie measured by hand, and `build_binary` is not installed in this
+> environment, so the number is not reproducible from committed code. Do not
+> quote it. `kenlm_baseline.py` now logs the ARPA size instead.
 
 Reading: KenLM's SGI-modified KN beats our trigram expert (296.2 → 250.9
 WT-2; 165.2 → 138.4 PTB) — expected of a battle-tested toolkit — but sits

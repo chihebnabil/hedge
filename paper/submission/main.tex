@@ -304,7 +304,7 @@ it; sum-to-one is not a nicety, it is the precondition for comparing rows.
  & WT-2 PP & WT-2 MB & PTB PP & PTB MB \\
 \midrule
 pure KN3 trigram & 296.2 & 21.4 & 165.2 & 9.2 \\
-KenLM 5-gram (toolkit defaults) & 250.9 & 53.8 & 138.4 & 23.1 \\
+KenLM 5-gram (toolkit defaults) & 250.9 & --- & 138.4 & --- \\
 pure GRU (aligned) & 146.9 & 32.7 & 103.0 & 13.1 \\
 uniform mixture (6 experts) & 182.6 & 68.7 & 138.4 & 28.7 \\
 fixed-weight KN3$+$GRU ($\lambda^{*}$ on valid) & 135.8 & 54.0 & 92.7 & 22.3 \\
@@ -332,7 +332,10 @@ validation only. Footprints are per corpus and measured
 GRU 32.7/13.1\,MB, router 2.9--31.0\,KB (15.5\,KB at the selected $h=128$).
 The router is the only row whose weights vary per token; it wins, but by
 1.1\%/2.2\% over a tuned static mixture of the same six experts, and the
-two-expert interpolation row uses only KN3 and the GRU. The last row is the invalidated v1 protocol
+two-expert interpolation row uses only KN3 and the GRU. KenLM footprints are
+left blank deliberately: only \texttt{lmplz} is installed in our environment,
+so we can log its ARPA size but not the query-time binary a deployment would
+ship, and we prefer no number to an unverifiable one. The last row is the invalidated v1 protocol
 (\S\ref{sec:audit}), kept here so the correction is visible.}
 \label{tab:money}
 \end{table*}
@@ -509,8 +512,8 @@ in our own first run --- enough to manufacture a 27--33\% win out of nothing,
 complete with three seeds, two corpora, an ensemble and a size sweep that all
 agreed. Sum-to-one is a one-line check. Run it.
 
-The cost side is equally unflattering: routing adds 0.46--0.47\,ms/token in
-situ over statically mixing the same six experts (+10\% on WT-2, +78\% on PTB,
+The cost side is equally unflattering: routing adds 0.57--0.58\,ms/token in
+situ over statically mixing the same six experts (+13\% on WT-2, +66\% on PTB,
 where the GRU is cheap), for a 1--2\% perplexity gain. At this footprint the
 deployed answer is the tuned static hybrid; the router is a research result
 about where per-token decisions do and do not pay.

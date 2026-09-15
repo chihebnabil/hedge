@@ -512,8 +512,8 @@ in our own first run --- enough to manufacture a 27--33\% win out of nothing,
 complete with three seeds, two corpora, an ensemble and a size sweep that all
 agreed. Sum-to-one is a one-line check. Run it.
 
-The cost side is equally unflattering: routing adds 0.46--0.47\,ms/token in
-situ over statically mixing the same six experts (+10\% on WT-2, +78\% on PTB,
+The cost side is equally unflattering: routing adds 0.57--0.58\,ms/token in
+situ over statically mixing the same six experts (+13\% on WT-2, +66\% on PTB,
 where the GRU is cheap), for a 1--2\% perplexity gain. At this footprint the
 deployed answer is the tuned static hybrid; the router is a research result
 about where per-token decisions do and do not pay.

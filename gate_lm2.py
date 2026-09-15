@@ -127,8 +127,7 @@ def main():
     A = np.mean([p(Xte) for p in preds_va], axis=0)
     report("gate[all], valid-trained h=256, 5-seed ens", A, Lte)
 
-    print("== anchors: online bucket mixer 199.50 | MLP rung-1 104.81 | "
-          "oracle 89.11 ==")
+    print("== anchors: see PAPER_NOTES.md §0 (v1 anchors invalidated, §12) ==")
 
 
 if __name__ == "__main__":

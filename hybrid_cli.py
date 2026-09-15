@@ -107,8 +107,9 @@ class Hybrid:
         """Causal, CANDIDATE-INDEPENDENT gate input (gate_lm.FeatMaker).
         The router sees the context only, never the word being scored, so the
         mixture below is a normalized distribution over the vocabulary.
-        The prompt is the sentence so far, so i = len(ctx_ids)."""
-        return self.fm.features(list(ctx_ids), len(ctx_ids))
+        The prompt is the sentence so far, so i = len(ctx_ids). Returned as a
+        (1, NF) row so it feeds straight into _predict_np."""
+        return self.fm.features(list(ctx_ids), len(ctx_ids)).reshape(1, -1)
 
     def gru_next(self, ids):
         """Next-token log-probs after streaming ids (carries h)."""
@@ -199,7 +200,7 @@ class Hybrid:
         print("  " + " ".join(marks))
         print(f"  gold = word  [gold] = in top-3  gold*(model's guess) = miss")
         print(f"  top-1 {hit1/max(n,1):.1%}  |  top-3 {hit3/max(n,1):.1%}  |  "
-              f"text PP {pp:.1f}   (benchmark full-system: ~24% / ~36%)")
+              f"text PP {pp:.1f}")
         return hit1, hit3, n
 
     def _next_counts(self):

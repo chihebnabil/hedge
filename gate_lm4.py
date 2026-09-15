@@ -48,8 +48,8 @@ def main():
     Ytr, Ltr = age_invariant(z["X"]), z["L"]
     pred = train_gate(Ytr, Ltr, hidden=64, epochs=8, wd=1e-4, seed=0)
     print(f"  test PP={nll_pp(pred(Yte), Lte):.2f}", flush=True)
-    print("== anchors: MKN 300.3 | bucket mixer 199.5 | rung-1 104.8 | "
-          "oracle 89.11 ==", flush=True)
+    print("== anchors: see PAPER_NOTES.md §0 (v1 anchors invalidated, "
+          "§12) ==", flush=True)
 
 
 if __name__ == "__main__":

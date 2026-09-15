@@ -354,8 +354,9 @@ def main():
     print("  gate expert picks: " +
           ", ".join(f"{NAMES[i]} {float((pick==i).mean()):.0%}"
                     for i in range(NEXP)))
-    print(f"== anchors: bucket mixer (online, valid-warmed) 199.50 | "
-          f"oracle 89.1 | MLP gate {pp_mlp:.2f} ==")
+    print(f"== MLP gate (5 experts, train-trained): {pp_mlp:.2f} | anchors: "
+          f"see PAPER_NOTES.md §0 (the v1 anchor numbers that used to be "
+          f"printed here are invalidated — §12) ==")
 
 
 if __name__ == "__main__":

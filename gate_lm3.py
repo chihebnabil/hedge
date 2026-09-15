@@ -66,8 +66,7 @@ def main():
     report("gate[votes+density+bucket] train-trained h=64",
            pred(Yte[:, cols]), Lte)
 
-    print("== anchors: online bucket mixer 199.50 | rung-1 104.81 | "
-          "rung-2 best 95.26 | oracle 89.11 ==")
+    print("== anchors: see PAPER_NOTES.md §0 (v1 anchors invalidated, §12) ==")
 
 
 if __name__ == "__main__":

@@ -31,8 +31,9 @@ with the exact mixed distribution and re-ranked.
 
 Benchmark (WikiText-2, fixed 217,004-position test stream, weights warmed on
 valid then FROZEN; cache updates causally):
-  MKN alone 300.3 | repo BEAST 292.4 | static mix 263.9
-  MIXER 199.5     | hindsight oracle 89.1
+  MKN alone 300.3 | repo BEAST 292.4 | static mix 263.9 | MIXER 199.5
+  ("hindsight oracle 89.1" is an UNNORMALIZED diagnostic, not a bound and not
+   comparable to the rows above — see PAPER_NOTES.md §12)
 
 Usage:
   python mixer_lm.py            # benchmark + top-k accuracy
