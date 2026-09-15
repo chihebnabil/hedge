@@ -75,6 +75,15 @@ class KnesserNeyExpert:
         self.i2w = model._i2w
         self.unk = self.w2i["unk"]
         self.name = "kn3"
+        self._top1_cache = {}
+        self._leader = None
+
+    def _uni_leader(self):
+        """(wid, p) of the continuation unigram's favourite (cached)."""
+        if self._leader is None:
+            wid, p = max(self.m._pcont.items(), key=lambda kv: kv[1])
+            self._leader = (wid, p)
+        return self._leader
 
     def prob(self, wid, ctx_ids):
         p = self.m._p_kn(wid, tuple(ctx_ids[-2:]))
@@ -82,6 +91,23 @@ class KnesserNeyExpert:
 
     def topk(self, ctx_words, n):
         return self.m._topk_kn(list(ctx_words), n)
+
+    def top1(self, ctx_ids):
+        """(wid, p) of this expert's own favourite — CAUSAL: depends on the
+        context only, never on the word being scored. Memoized per bigram
+        context (the walk is exact, so repeats are free)."""
+        key = tuple(ctx_ids[-2:])
+        hit = self._top1_cache.get(key)
+        if hit is None:
+            words = [self.i2w[c] for c in key]
+            cands = self.m._topk_kn(words, 1)
+            if cands:
+                w, p = cands[0]
+                hit = (self.w2i.get(w, self.unk), p)
+            else:
+                hit = self._uni_leader()
+            self._top1_cache[key] = hit
+        return hit
 
 
 class UnigramExpert:
@@ -104,6 +130,14 @@ class UnigramExpert:
             self._leaders = heapq.nlargest(30, self.p.items(),
                                            key=lambda kv: kv[1])
         return [(self.i2w[wid], p) for wid, p in self._leaders[:n]]
+
+    def top1(self, ctx_ids):
+        """(wid, p) of the continuation unigram's favourite (context-free)."""
+        if self._leaders is None:
+            self._leaders = heapq.nlargest(30, self.p.items(),
+                                           key=lambda kv: kv[1])
+        wid, p = self._leaders[0]
+        return wid, (p if p > EXPERT_FLOOR else EXPERT_FLOOR)
 
 
 class DirichletBigramExpert:
@@ -151,6 +185,22 @@ class DirichletBigramExpert:
         return [(self.i2w[wid], c) for c, wid in
                 heapq.nlargest(n, self.top.get(ctx, []))]
 
+    def top1(self, ctx_ids):
+        """(wid, p) of this expert's own favourite — causal, O(top-list)."""
+        if len(ctx_ids) < self.lag:
+            return self.base_top1()
+        lst = self.top.get(ctx_ids[-self.lag])
+        if not lst:
+            return self.base_top1()
+        _c, wid = max(lst)
+        return wid, self.prob(wid, ctx_ids)
+
+    def base_top1(self):
+        if not hasattr(self, "_base_leader"):
+            self._base_leader = max(self.base.items(), key=lambda kv: kv[1])
+        wid, p = self._base_leader
+        return wid, (p if p > EXPERT_FLOOR else EXPERT_FLOOR)
+
 
 class CacheExpert:
     """E3: empirical distribution over the last CACHE_WINDOW tokens."""
@@ -161,12 +211,39 @@ class CacheExpert:
         self.name = "cache"
         self.win = []
         self.counts = defaultdict(int)
+        self._heap = []
 
     def prob(self, wid, ctx_ids):
         t = len(self.win)
         c = self.counts.get(wid, 0)
         p = (c + CACHE_MU * self.base.get(wid, 0.0)) / (t + CACHE_MU)
         return p if p > EXPERT_FLOOR else EXPERT_FLOOR
+
+    def top1(self, ctx_ids):
+        """(wid, p) of the cache's most frequent token — causal, amortized
+        O(log window) via a max-heap with lazy deletion (an entry is stale
+        iff its recorded count no longer matches the window)."""
+        if not self.counts:
+            return self.base_top1()
+        h = self._heap
+        while h:
+            negc, wid = h[0]
+            if self.counts.get(wid, 0) == -negc:
+                return wid, self.prob(wid, ctx_ids)
+            heapq.heappop(h)
+        self._rebuild_heap()
+        negc, wid = self._heap[0]
+        return wid, self.prob(wid, ctx_ids)
+
+    def base_top1(self):
+        if not hasattr(self, "_base_leader"):
+            self._base_leader = max(self.base.items(), key=lambda kv: kv[1])
+        wid, p = self._base_leader
+        return wid, (p if p > EXPERT_FLOOR else EXPERT_FLOOR)
+
+    def _rebuild_heap(self):
+        self._heap = [(-c, w) for w, c in self.counts.items()]
+        heapq.heapify(self._heap)
 
     def topk(self, ctx_words, n):
         return [(self.i2w[wid], c) for wid, c in
@@ -175,11 +252,19 @@ class CacheExpert:
     def update(self, wid):
         self.win.append(wid)
         self.counts[wid] += 1
+        heapq.heappush(self._heap, (-self.counts[wid], wid))
         if len(self.win) > CACHE_WINDOW:
             old = self.win.pop(0)
             self.counts[old] -= 1
             if self.counts[old] <= 0:
                 del self.counts[old]
+        if len(self._heap) > 8 * CACHE_WINDOW:
+            self._rebuild_heap()
+
+    def clear(self):
+        self.win = []
+        self.counts = defaultdict(int)
+        self._heap = []
 
     def snapshot(self):
         return (list(self.win), defaultdict(int, self.counts))
@@ -187,6 +272,7 @@ class CacheExpert:
     def restore(self, state):
         self.win = list(state[0])
         self.counts = defaultdict(int, state[1])
+        self._rebuild_heap()
 
 
 class UserExpert(CacheExpert):

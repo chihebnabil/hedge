@@ -1,0 +1,208 @@
+
+=== [WT-2] collect SKIPPED (SKIP_COLLECT=1, npz present) ===
+    (2026-09-15T08:34:36Z)
+test_matches_rescan_over_a_stream (tests.test_gate.TestCacheTop1Incremental.test_matches_rescan_over_a_stream) ... ok
+test_no_feature_column_equals_a_label_column (tests.test_gate.TestCachedArtifactsHaveNoLeak.test_no_feature_column_equals_a_label_column) ... ok
+test_feature_width_and_no_nan (tests.test_gate.TestFeaturesAreCausal.test_feature_width_and_no_nan) ... ok
+test_features_do_not_depend_on_the_scored_word (tests.test_gate.TestFeaturesAreCausal.test_features_do_not_depend_on_the_scored_word)
+Same context, different futures -> identical feature rows. ...   [a] done: 7 positions in 0s
+  [b] done: 8 positions in 0s
+ok
+test_labels_are_the_target_side_only (tests.test_gate.TestFeaturesAreCausal.test_labels_are_the_target_side_only) ... ok
+test_context_only_mixture_is_a_distribution (tests.test_gate.TestMixtureIsNormalized.test_context_only_mixture_is_a_distribution) ... ok
+test_each_expert_is_a_distribution (tests.test_gate.TestMixtureIsNormalized.test_each_expert_is_a_distribution) ... ok
+test_top1_is_a_real_expert_pick (tests.test_gate.TestMixtureIsNormalized.test_top1_is_a_real_expert_pick) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 3.836s
+
+OK
+
+=== [WT-2] money table + gate-size sweep ===
+    (2026-09-15T08:34:40Z)
+loading splits ...
+  experts per position: 6  (kn3, lag2, cache, lag3, uni, gru)
+== the money table (WT-2 test, 217,004 aligned positions) ==
+  pure GRU                           PP=   146.85  [32.7 MB fp32]
+  pure KN3 (anchor)                  PP=   296.23  [21.4 MB counts]
+  gate[5 experts]                    PP=   481.00  [statistical experts + gate 7.5 KB]
+  fixed-lambda KN3+GRU               PP=   135.84  [lambda*=0.21 on KN3, GRU gets 0.79; tuned on valid; 54.0 MB]
+  static-alpha (6 experts, train-fit) PP=   170.97  [alpha kn3 0.68 lag2 0.00 cache 0.00 lag3 0.09 uni 0.00 gru 0.23]
+  static-alpha (6 experts, VALID-fit) PP=   119.14  [alpha kn3 0.17 lag2 0.00 cache 0.11 lag3 0.00 uni 0.00 gru 0.70]
+    [gate-size sweep: hidden size selected on VALID only]
+    [gate h= 24    2.9 KB  valid  272.90  test  263.58]
+    [gate h= 64    7.8 KB  valid  262.80  test  254.17]
+    [gate h=128   15.5 KB  valid  272.52  test  263.70]
+    [gate h=256   31.0 KB  valid  259.13  test  250.79]
+  GATE hybrid (6 experts)            PP=   250.79  [h=256, gate 31.0 KB, valid 259.13]
+    [router tuned on VALID only — same budget as lambda* and alpha; h by 2-fold CV inside valid]
+    [valid-tuned router h= 24: CV valid PP 122.42]
+    [valid-tuned router h= 64: CV valid PP 122.37]
+    [valid-tuned router h=128: CV valid PP 122.08]
+    [valid-tuned router h=256: CV valid PP 122.16]
+  ROUTER, valid-tuned (h by CV)      PP=   117.86  [h=128, gate 15.5 KB, CV valid 122.08]
+  router over 5 stat. experts, valid-tuned PP=   194.47  [h=128, gate 15.0 KB, no GRU]
+  best single expert (hindsight)     PP=   146.85  [normalized bound: always pick gru]
+  per-position best expert           PP=    57.35  [UNNORMALIZED diagnostic: mass > 1, not achievable by a mixture]
+== verdict ==
+  per-position best expert (UNNORMALIZED diagnostic, mass > 1): 57.35 — no normalized mixture can reach this
+  train-trained router 250.79 LOSES to the strongest tuned baseline (fixed-lambda 135.84 / static-valid 119.14) on WT-2
+  valid-tuned router 117.86 BEATS the strongest tuned baseline (fixed-lambda 135.84 / static-valid 119.14) on WT-2
+
+=== [WT-2] seed audit (3 seeds, mean/sd + ensembles) ===
+    (2026-09-15T08:41:22Z)
+== seed audit: ROUTER valid-tuned h=128 (CV-selected), 15 ep ==
+  [router-valid] seed 0: test PP 117.86
+  [router-valid] seed 1: test PP 117.93
+  [router-valid] seed 2: test PP 118.40
+  => router-valid: 118.06 +/- 0.29 (3 seeds)
+  => router-valid: 3-router ENSEMBLE PP 117.60
+== seed audit: static-alpha (6 experts, VALID-fit) ==
+  [static-alpha-valid] seed 0: test PP 119.14
+  [static-alpha-valid] seed 1: test PP 119.14
+  [static-alpha-valid] seed 2: test PP 119.15
+  => static-alpha-valid: 119.14 +/- 0.01 (3 seeds)
+  => static-alpha-valid: 3-router ENSEMBLE PP 119.14
+== seed audit: static-alpha (6 experts, train-fit) ==
+  [static-alpha-train] seed 0: test PP 170.97
+  [static-alpha-train] seed 1: test PP 170.68
+  [static-alpha-train] seed 2: test PP 171.93
+  => static-alpha-train: 171.19 +/- 0.66 (3 seeds)
+  => static-alpha-train: 3-router ENSEMBLE PP 171.19
+== context: the train-trained router (valid-selected h=256) is a single-seed negative control; see the 4-size sweep in money_table.log ==
+
+=== [WT-2] selective GRU activation ===
+    (2026-09-15T08:42:02Z)
+== selective GRU activation (WT-2, realizable) ==
+  5-expert router (valid-tuned, h=128): test PP 194.47 (15.0 KB)
+  6-expert router (valid-tuned, h=128): CV valid 122.08  test 117.86   curve h24=122.4 h64=122.4 h128=122.1 h256=122.2
+  tau | GRU usage | test PP
+  0.00 |    100.0% |  117.86
+  0.02 |    100.0% |  117.86
+  0.05 |    100.0% |  117.86
+  0.10 |    100.0% |  117.86
+  0.20 |    100.0% |  117.86
+  0.30 |     99.9% |  117.86
+  0.50 |     99.0% |  118.07
+
+=== [WT-2] router diagnostic (why routing does not transfer) ===
+    (2026-09-15T08:42:59Z)
+router diagnostic — WT-2 (cached train-trained gate h=256)
+  [train] 1,846,068 positions
+  expert PP      : kn3=39.4  lag2=164.3  cache=1792.0  lag3=202.3  uni=1355.8  gru=75.2
+  uniform alpha  : 52.60
+  static train-fit: 32.67   alpha 0.68 0.00 0.00 0.09 0.00 0.23
+  static valid-fit: 44.97   alpha 0.17 0.00 0.11 0.00 0.00 0.70
+  router PP      : 23.04
+  router's mean alpha used statically: 34.19
+  mean alpha     : kn3=0.526 lag2=0.131 cache=0.002 lag3=0.152 uni=0.000 gru=0.190
+  [valid] 193,222 positions
+  expert PP      : kn3=302.9  lag2=1882.2  cache=1439.7  lag3=2801.1  uni=1128.1  gru=152.7
+  uniform alpha  : 190.12
+  static train-fit: 175.55   alpha 0.68 0.00 0.00 0.09 0.00 0.23
+  static valid-fit: 123.65   alpha 0.17 0.00 0.11 0.00 0.00 0.70
+  router PP      : 259.13
+  router's mean alpha used statically: 167.93
+  mean alpha     : kn3=0.418 lag2=0.130 cache=0.002 lag3=0.145 uni=0.000 gru=0.305
+  [test] 217,004 positions
+  expert PP      : kn3=296.2  lag2=1801.3  cache=1282.0  lag3=2640.2  uni=1100.3  gru=146.8
+  uniform alpha  : 182.56
+  static train-fit: 170.97   alpha 0.68 0.00 0.00 0.09 0.00 0.23
+  static valid-fit: 119.14   alpha 0.17 0.00 0.11 0.00 0.00 0.70
+  router PP      : 250.79
+  router's mean alpha used statically: 162.28
+  mean alpha     : kn3=0.415 lag2=0.128 cache=0.002 lag3=0.143 uni=0.000 gru=0.312
+  reading: if 'router PP' >> 'router's mean alpha used statically', the per-context modulation is the problem, not the average trust it learned; compare the expert PP rows across splits to see the reliability shift it memorized.
+  wrote benchmarks/results/router_diagnostic.log
+
+=== [WT-2] energy / latency harness ===
+    (2026-09-15T08:43:27Z)
+== energy harness: WT-2, 200 test sentences, lam*=0.21 (weight on KN3), 1 torch thread(s), 5 interleaved rounds, TDP proxy 15 W ==
+  router: valid-tuned h=128 (the paper's headline router)
+  [round 1/5 done]
+  [round 2/5 done]
+  [round 3/5 done]
+  [round 4/5 done]
+  [round 5/5 done]
+  kn3            wall   0.0050 ms/tok (min 0.0043 / max 0.0063)   cpu   0.0050 ms/tok   ~  0.074 mJ/tok   (n=5,115)
+  mixer5         wall   0.0143 ms/tok (min 0.0116 / max 0.0362)   cpu   0.0143 ms/tok   ~  0.215 mJ/tok   (n=5,115)
+  router-only    wall   0.6400 ms/tok (min 0.4413 / max 1.0633)   cpu   0.4950 ms/tok   ~  9.601 mJ/tok   (n=5,115)
+  gru            wall   6.5539 ms/tok (min 4.4594 / max 6.8278)   cpu   4.6120 ms/tok   ~ 98.309 mJ/tok   (n=5,115)
+  fixed-lam      wall   4.8395 ms/tok (min 4.6323 / max 5.3373)   cpu   4.6219 ms/tok   ~ 72.592 mJ/tok   (n=5,115)
+  gate6 (full)   wall   5.5976 ms/tok (min 5.3286 / max 8.3970)   cpu   5.4483 ms/tok   ~ 83.964 mJ/tok   (n=5,115)
+
+  router overhead vs fixed interpolation: +0.7581 ms/tok (+15.7%)
+  router-only marginal cost: 0.6400 ms/tok = 11.4% of the full system
+  WARNING: the GRU alone measured SLOWER than a system that contains it — machine noise; do not quote these rows
+
+  sizes: tri 21.4 MB | lag2 6.9 MB | lag3 7.4 MB | cache+uni 0.3 MB | router 15.5 KB | GRU 32.7 MB fp32
+
+=== [WT-2] normalization audit (current causal router, must be Z=1) ===
+    (2026-09-15T08:51:22Z)
+== normalization audit: WT-2, causal router, 150 sampled positions ==
+  artifacts: benchmarks/results  X(217004, 24) L(217004, 6)
+  feature columns identical to a label column: none
+  router: h=128, 24 input features
+  reported test PP over all 217,004 positions: 117.86
+    25/150 positions (7s)
+    50/150 positions (15s)
+    75/150 positions (22s)
+    100/150 positions (30s)
+    125/150 positions (37s)
+    150/150 positions (45s)
+
+  normalization audit — WT-2, causal (context-only) router
+  sampled positions                : 150
+  reported test PP (all positions) : 117.86
+  reported PP on the sample        : 102.41
+  mean log Z(ctx) over vocabulary  : +0.0000   (mass x1.000)
+  NORMALIZED PP on the sample      : 102.41
+  implied deflation of the reported number: x1.00 (normalized = reported x Z)
+  a mixture LM must have Z = 1 at every context; Z > 1 means the
+  router's weights depend on the word being scored and the perplexity
+  is not comparable to a normalized baseline.
+
+  wrote benchmarks/results/normalization_audit.log
+
+=== [WT-2] normalization audit (invalidated v1 leaky router) ===
+    (2026-09-15T08:52:22Z)
+== normalization audit: WT-2, v1 LEAKY router, 100 sampled positions ==
+  artifacts: benchmarks/results/legacy_leaky_v1  X(217004, 20) L(217004, 6)
+  feature columns identical to a label column: [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
+  v1 router: cached weights h=128
+  router: h=128, 20 input features
+  reported test PP over all 217,004 positions: 90.28
+    25/100 positions (11s)
+    50/100 positions (22s)
+    75/100 positions (34s)
+    100/100 positions (46s)
+
+  normalization audit — WT-2, v1 LEAKY (candidate-conditioned) router
+  sampled positions                : 100
+  reported test PP (all positions) : 90.28
+  reported PP on the sample        : 120.19
+  mean log Z(ctx) over vocabulary  : +0.9777   (mass x2.658)
+  NORMALIZED PP on the sample      : 319.49
+  implied deflation of the reported number: x2.66 (normalized = reported x Z)
+  a mixture LM must have Z = 1 at every context; Z > 1 means the
+  router's weights depend on the word being scored and the perplexity
+  is not comparable to a normalized baseline.
+
+  wrote benchmarks/results/legacy_leaky_v1/normalization_audit_legacy.log
+
+=== [WT-2] footprint metadata ===
+    (2026-09-15T08:53:24Z)
+{
+  "corpus": "WT-2",
+  "vocab_gru": 28715,
+  "params": 8169259,
+  "gru_mb_fp32": 32.7,
+  "gru_mb_fp16": 16.3,
+  "trigram_mb": 21.4,
+  "lag2_mb": 6.9,
+  "lag3_mb": 7.4,
+  "cache_uni_mb": 0.3,
+  "statistical_mb": 36.0,
+  "system_mb": 68.7
+}
+=== [WT-2] pipeline complete ===

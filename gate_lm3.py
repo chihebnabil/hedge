@@ -1,9 +1,13 @@
 """
-gate_lm3.py — Stage 2b: fix the cache-age distribution shift.
-Train-stream features were collected with an always-full 512-token cache;
-valid/test start empty. Features 11 (log window size) and 12 (log count)
-leak "how old is the cache". Replace with the age-invariant density
-c/(t+1) and drop t. Then re-run the train-vs-valid training comparison.
+gate_lm3.py — Stage 2b: cache-age distribution shift + train-vs-valid control.
+
+History: train-stream features were once collected with an always-full
+512-token cache while valid/test start empty, so the raw cache features
+(window size, raw count) encoded "how old is the cache" and shifted between
+splits. The fix was the age-invariant density c/(t+1).
+
+gate_lm.FeatMaker now emits those densities directly (features 16/17), so
+`age_invariant` below is a validated pass-through kept for cached pipelines.
 """
 
 import math
@@ -21,12 +25,9 @@ NEXP = 5
 
 
 def age_invariant(X):
-    X2 = X.copy()
-    t = np.expm1(X[:, 11].astype(np.float64))
-    c = np.expm1(X[:, 12].astype(np.float64))
-    X2[:, 11] = 0.0                       # drop window-age feature
-    X2[:, 12] = np.log1p(c / (t + 1.0))   # cache density, age-free
-    return X2
+    """Pass-through: the collector already emits age-invariant cache
+    densities (columns 16/17). Kept so cached npz pipelines stay compatible."""
+    return X
 
 
 def main():
@@ -59,10 +60,10 @@ def main():
     report("gate[AI] valid-trained h=64, 5-seed",
            np.mean([p(Yte) for p in preds], axis=0), Lte)
 
-    print("== votes + minimal evidence on age-invariant features ==")
-    cols = [0, 1, 2, 3, 4, 12, 13, 14, 15, 16]   # votes, cache density, bucket
+    print("== votes + minimal evidence ==")
+    cols = list(range(10)) + [16, 17, 18, 19, 20, 21]  # votes, densities, bucket
     pred = train_gate(Ytr[:, cols], Ltr, hidden=64, epochs=12, wd=1e-4)
-    report("gate[AI, votes+density+bucket] train-trained h=64",
+    report("gate[votes+density+bucket] train-trained h=64",
            pred(Yte[:, cols]), Lte)
 
     print("== anchors: online bucket mixer 199.50 | rung-1 104.81 | "

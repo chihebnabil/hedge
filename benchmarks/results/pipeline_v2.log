@@ -1,0 +1,70 @@
+
+=== [WT-2] collect SKIPPED (SKIP_COLLECT=1, npz present) ===
+    (2026-09-15T08:14:35Z)
+test_matches_rescan_over_a_stream (tests.test_gate.TestCacheTop1Incremental.test_matches_rescan_over_a_stream) ... ok
+test_no_feature_column_equals_a_label_column (tests.test_gate.TestCachedArtifactsHaveNoLeak.test_no_feature_column_equals_a_label_column) ... ok
+test_feature_width_and_no_nan (tests.test_gate.TestFeaturesAreCausal.test_feature_width_and_no_nan) ... ok
+test_features_do_not_depend_on_the_scored_word (tests.test_gate.TestFeaturesAreCausal.test_features_do_not_depend_on_the_scored_word)
+Same context, different futures -> identical feature rows. ...   [a] done: 7 positions in 0s
+  [b] done: 8 positions in 0s
+ok
+test_labels_are_the_target_side_only (tests.test_gate.TestFeaturesAreCausal.test_labels_are_the_target_side_only) ... ok
+test_context_only_mixture_is_a_distribution (tests.test_gate.TestMixtureIsNormalized.test_context_only_mixture_is_a_distribution) ... ok
+test_each_expert_is_a_distribution (tests.test_gate.TestMixtureIsNormalized.test_each_expert_is_a_distribution) ... ok
+test_top1_is_a_real_expert_pick (tests.test_gate.TestMixtureIsNormalized.test_top1_is_a_real_expert_pick) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 2.592s
+
+OK
+
+=== [WT-2] money table + gate-size sweep ===
+    (2026-09-15T08:14:38Z)
+loading splits ...
+  experts per position: 6  (kn3, lag2, cache, lag3, uni, gru)
+== the money table (WT-2 test, 217,004 aligned positions) ==
+  pure GRU                           PP=   146.85  [32.7 MB fp32]
+  pure KN3 (anchor)                  PP=   296.23  [21.4 MB counts]
+  gate[5 experts]                    PP=   481.00  [statistical experts + gate 7.5 KB]
+  fixed-lambda KN3+GRU               PP=   135.84  [lambda*=0.21 on KN3, GRU gets 0.79; tuned on valid; 54.0 MB]
+  static-alpha (6 experts, train-fit) PP=   170.97  [alpha kn3 0.68 lag2 0.00 cache 0.00 lag3 0.09 uni 0.00 gru 0.23]
+  static-alpha (6 experts, VALID-fit) PP=   119.14  [alpha kn3 0.17 lag2 0.00 cache 0.11 lag3 0.00 uni 0.00 gru 0.70]
+    [gate-size sweep: hidden size selected on VALID only]
+    [gate h= 24    2.9 KB  valid  272.90  test  263.58]
+    [gate h= 64    7.8 KB  valid  262.80  test  254.17]
+    [gate h=128   15.5 KB  valid  272.52  test  263.70]
+    [gate h=256   31.0 KB  valid  259.13  test  250.79]
+  GATE hybrid (6 experts)            PP=   250.79  [h=256, gate 31.0 KB, valid 259.13]
+  GATE hybrid, valid-trained         PP=   117.70  [fair-data control]
+  best single expert (hindsight)     PP=   146.85  [normalized bound: always pick gru]
+  per-position best expert           PP=    57.35  [UNNORMALIZED diagnostic: mass > 1, not achievable by a mixture]
+== verdict ==
+  per-position best expert (UNNORMALIZED diagnostic, mass > 1): 57.35 — no normalized mixture can reach this
+  GATE LOSES to the strongest tuned baseline on WT-2 (250.79 > fixed-lambda 135.84 / static-valid 119.14) — report honestly and reposition (PROGRESS.md watchlist)
+
+=== [WT-2] seed audit (3 seeds, mean/sd + ensembles) ===
+    (2026-09-15T08:19:49Z)
+== seed audit: GATE(6) train-trained h=256 (valid-selected), 12 ep ==
+  [gate6-train] seed 0: test PP 250.79
+  [gate6-train] seed 1: test PP 257.48
+  [gate6-train] seed 2: test PP 238.38
+  => gate6-train: 248.88 ± 9.69 (3 seeds)
+  => gate6-train: 3-gate ENSEMBLE PP 246.34
+== seed audit: GATE(6) valid-trained h=64, 15 ep ==
+  [gate6-valid] seed 0: test PP 117.70
+  [gate6-valid] seed 1: test PP 117.66
+  [gate6-valid] seed 2: test PP 118.72
+  => gate6-valid: 118.03 ± 0.60 (3 seeds)
+  => gate6-valid: 3-gate ENSEMBLE PP 117.73
+== seed audit: static-alpha (6 experts, VALID-fit) ==
+  [static-alpha-valid] seed 0: test PP 119.14
+  [static-alpha-valid] seed 1: test PP 119.14
+  [static-alpha-valid] seed 2: test PP 119.15
+  => static-alpha-valid: 119.14 ± 0.01 (3 seeds)
+  => static-alpha-valid: 3-gate ENSEMBLE PP 119.14
+== seed audit: static-alpha (6 experts, train-fit) ==
+  [static-alpha-train] seed 0: test PP 170.97
+  [static-alpha-train] seed 1: test PP 170.68
+  [static-alpha-train] seed 2: test PP 171.93
+  => static-alpha-train: 171.19 ± 0.66 (3 seeds)
+  => static-alpha-train: 3-gate ENSEMBLE PP 171.19

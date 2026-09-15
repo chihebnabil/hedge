@@ -1,11 +1,12 @@
-selective GRU activation (PTB test) — realizable vs oracle
-always-on 6-gate: 68.02 (GRU 100%)
-oracle bound: 100% 44.37 | 50% 44.37 | 25% 45.99 | 10% 52.32
+selective GRU activation (PTB test) — realizable rows are normalized LMs;
+the per-position 'oracle' rows below are UNNORMALIZED diagnostics (vocabulary mass > 1), not achievable bounds
+always-on 6-gate: 87.77 (GRU 100%)
+per-position best expert: 100% 44.37 | 50% 44.37 | 25% 45.99 | 10% 52.32
 
-tau=0.00: GRU on 100.0% -> PP   68.02
-tau=0.02: GRU on  54.7% -> PP   68.22
-tau=0.05: GRU on  47.1% -> PP   68.43
-tau=0.10: GRU on  40.7% -> PP   68.71
-tau=0.20: GRU on  33.4% -> PP   69.27
-tau=0.30: GRU on  28.7% -> PP   69.74
-tau=0.50: GRU on  21.8% -> PP   70.72
+tau=0.00: GRU on 100.0% -> PP   87.77
+tau=0.02: GRU on 100.0% -> PP   87.77
+tau=0.05: GRU on 100.0% -> PP   87.77
+tau=0.10: GRU on 100.0% -> PP   87.77
+tau=0.20: GRU on 100.0% -> PP   87.77
+tau=0.30: GRU on  99.6% -> PP   87.81
+tau=0.50: GRU on  89.7% -> PP   89.86

@@ -3,29 +3,47 @@ gate_lm.py — Stage 1 of the neural ladder: replace the mixer's 4-bucket
 softmax with a tiny neural gate (MLP), trained offline on per-position data.
 
 Setup (all experts FROZEN, only the gate learns):
-  features x (19 dims, all causal, no leakage):
-    [0:5]  expert log-opinions log p_i(w_next)      (the "raw votes")
-    [5]    log1p(mass of bigram context in KN3)      (context evidence)
-    [6]    log1p(distinct KN3 continuations of ctx)
-    [7,8]  log1p(lag2 ctx total), hit flag
-    [9,10] log1p(lag3 ctx total), hit flag
-    [11,12] log1p(cache window size), log1p(cache count of w)
-    [13:17] bucket one-hot (the old model's whole input)
-    [17]   position fraction in sentence
-    [18]   log1p(sentence length)
-    [19]   sentence-start flag
-  gate: 19 -> H -> 5 logits -> softmax alpha ; mixture P = sum_i a_i p_i
+  features x (24 dims, ALL CAUSAL AND CANDIDATE-INDEPENDENT — they are a
+  function of the context alone, never of the word being scored):
+    [0:5]   log p_i(top1_i(ctx))     each expert's confidence in its OWN
+                                     favourite word (the "votes")
+    [5:10]  1.0 iff top1_i(ctx) == the plurality favourite of the five
+    [10]    log1p(mass of bigram context in KN3)      (context evidence)
+    [11]    log1p(distinct KN3 continuations of ctx)
+    [12,13] log1p(lag2 ctx total), hit flag
+    [14,15] log1p(lag3 ctx total), hit flag
+    [16]    log1p(distinct cache types / (window+1))   (age-invariant)
+    [17]    log1p(top cache count / (window+1))        (age-invariant)
+    [18:22] KN-mass bucket one-hot (the old model's whole input)
+    [22]    log1p(tokens seen so far in this sentence)
+    [23]    sentence-start flag
+  Dropped as non-causal: the sentence-length and position-fraction features
+  of the first version (both need the sentence END, which is future
+  information at scoring time).
+  labels L (5 dims): log p_i(w_gold) — the target-side data the mixture is
+  scored with. Labels appear ONLY in L, never in x.
+  gate: 24 -> H -> 5 logits -> softmax alpha ; mixture P = sum_i a_i p_i
   loss = -log P   (same objective as the PP benchmark)
+
+  INVARIANT (tests/test_gate.py): alpha is a function of the context alone,
+  so P(w|ctx) is a normalized distribution over the vocabulary and the
+  reported perplexity is comparable to the baselines'. An earlier version of
+  this file fed log p_i(w_gold) in as features [0:5] — the gate could then
+  read the answer, the "mixture" summed to ~2.7 over the vocabulary, and
+  every gate perplexity was inflated by that factor. Do not reintroduce any
+  feature that depends on the scored word.
 
 Baselines reported on the SAME 217,004-position test stream:
   global static alpha | bucket softmax (static, learned on train)
   | ONLINE bucket mixer (= the 199.5 protocol) | MLP gate | oracle.
 
-Usage:  python gate_lm.py          (caches datasets as .npz for re-runs)
+Usage:  python gate_lm.py            (caches datasets as .npz for re-runs)
+        python gate_lm.py --collect  (rebuild the .npz caches and exit)
 """
 
 import math
 import os
+import sys
 import time
 
 import numpy as np
@@ -35,26 +53,96 @@ from mixer_lm import FLOOR, build
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.environ.get("HEDGE_RESULTS",
                            os.path.join(HERE, "benchmarks", "results"))
-NF = 20
+NF = 24
 NEXP = 5
 LP_MIN = math.log(FLOOR)
 NAMES = ["kn3", "lag2", "cache", "lag3", "uni"]
+VOTE_COLS = list(range(0, 10))
+EVID_COLS = list(range(10, NF))
+
+
+# -- causal feature extraction ------------------------------------------------ #
+
+class FeatMaker:
+    """Gate features + expert labels for one position.
+
+    `features()` is the ONLY input the router ever sees; it must not depend on
+    the word being scored. `labels()` holds the target-side log-probs used to
+    score the mixture. Keeping the two apart is what makes the perplexity a
+    perplexity (see the module docstring and tests/test_gate.py)."""
+
+    def __init__(self, mixer):
+        self.mixer = mixer
+        self.tri = mixer.tri_model
+        self.e1, self.e2, self.e3, self.e4, self.e5 = mixer.experts[:5]
+        self.w2i, self.i2w, self.unk = mixer.w2i, mixer.i2w, mixer.unk
+        self.big2_t = self.e2.totals
+        self.big3_t = self.e4.totals
+
+    def top1s(self, ctx_ids):
+        """[(wid, p)] per expert — each expert's own favourite, context-only."""
+        return (self.e1.top1(ctx_ids), self.e2.top1(ctx_ids),
+                self.e3.top1(ctx_ids), self.e4.top1(ctx_ids),
+                self.e5.top1(ctx_ids))
+
+    def features(self, ctx_ids, i):
+        """24-dim causal feature vector for position i (0-based count of
+        tokens already seen in the sentence)."""
+        tops = self.top1s(ctx_ids)
+        fav = [w for w, _p in tops]
+        plur = max(set(fav), key=fav.count)
+
+        payload = (self.tri._counts[2].get(tuple(ctx_ids[-2:]))
+                   if len(ctx_ids) >= 2 else None)
+        if payload is None:
+            mass, n3p, bkt = 0.0, 0.0, 0
+        else:
+            mass, n3p = payload[1], payload[3]
+            bkt = 1 if mass == 1 else (2 if mass <= 5 else 3)
+        c2 = ctx_ids[-2] if len(ctx_ids) >= 2 else None
+        c3 = ctx_ids[-3] if len(ctx_ids) >= 3 else None
+        t2 = self.big2_t.get(c2, 0) if c2 is not None else 0
+        t3 = self.big3_t.get(c3, 0) if c3 is not None else 0
+        win = len(self.e3.win) + 1.0
+
+        x = np.zeros(NF, dtype=np.float32)
+        for j, (_w, p) in enumerate(tops):
+            x[j] = max(math.log(p), LP_MIN)
+            x[NEXP + j] = 1.0 if fav[j] == plur else 0.0
+        x[10] = math.log1p(mass)
+        x[11] = math.log1p(n3p)
+        x[12] = math.log1p(t2)
+        x[13] = 1.0 if t2 > 0 else 0.0
+        x[14] = math.log1p(t3)
+        x[15] = 1.0 if t3 > 0 else 0.0
+        x[16] = math.log1p(len(self.e3.counts) / win)
+        x[17] = math.log1p((max(self.e3.counts.values()) if self.e3.counts
+                            else 0) / win)
+        x[18:22] = 0.0
+        x[18 + bkt] = 1.0
+        x[22] = math.log1p(i)
+        x[23] = 1.0 if i == 1 else 0.0
+        return x
+
+    def labels(self, ctx_ids, wid):
+        """5-dim log p_i(w_gold): the target-side scores, NEVER a feature."""
+        ctx = tuple(ctx_ids)
+        return np.array([
+            max(math.log(self.e1.prob(wid, ctx)), LP_MIN),
+            max(math.log(self.e2.prob(wid, ctx)), LP_MIN),
+            max(math.log(self.e3.prob(wid, ctx)), LP_MIN),
+            max(math.log(self.e4.prob(wid, ctx)), LP_MIN),
+            max(math.log(self.e5.prob(wid, ctx)), LP_MIN),
+        ], dtype=np.float32)
 
 
 # -- data collection --------------------------------------------------------- #
 
 def collect(mixer, sents, desc):
-    """One causal stream over sents; returns X (N,20) f32, L (N,5) f32.
+    """One causal stream over sents; returns X (N,24) f32, L (N,5) f32.
     Cache state evolves during the pass (deployment-realistic)."""
-    tri = mixer.tri_model
-    e2 = mixer.experts[1]
-    e3 = mixer.experts[2]
-    e4 = mixer.experts[3]
-    e5 = mixer.experts[4]
-    w2i, unk = mixer.w2i, mixer.unk
-    pcont = e5.p
-    big2_t, big2_c = e2.totals, e2.counts
-    big3_t, big3_c = e4.totals, e4.counts
+    fm = FeatMaker(mixer)
+    w2i, unk = fm.w2i, fm.unk
     X = np.empty((256_000, NF), dtype=np.float32)
     L = np.empty((256_000, NEXP), dtype=np.float32)
     n = 0
@@ -64,53 +152,14 @@ def collect(mixer, sents, desc):
         m = len(ids)
         for i in range(1, m):
             wid = ids[i]
-            ctx = tuple(ids[max(0, i - 3):i])
-            p_kn = mixer.experts[0].prob(wid, ctx)
-            p_l2 = e2.prob(wid, ctx)
-            p_ca = e3.prob(wid, ctx)
-            p_l3 = e4.prob(wid, ctx)
-            p_un = e5.prob(wid, ctx)
-            payload = tri._counts[2].get(ctx[-2:]) if len(ctx) == 2 else None
-            if payload is None:
-                mass, n3p, bkt = 0.0, 0.0, 0
-            else:
-                mass, n3p = payload[1], payload[3]
-                bkt = 1 if mass == 1 else (2 if mass <= 5 else 3)
-            c2 = ctx[-2] if len(ctx) >= 2 else None
-            c3 = ctx[-3] if len(ctx) >= 3 else None
-            t2 = big2_t.get(c2, 0) if c2 is not None else 0
-            t3 = big3_t.get(c3, 0) if c3 is not None else 0
-            tca = len(e3.win)
-            cca = e3.counts.get(wid, 0)
-            x = X[n]
-            x[0] = max(math.log(p_kn), LP_MIN)
-            x[1] = max(math.log(p_l2), LP_MIN)
-            x[2] = max(math.log(p_ca), LP_MIN)
-            x[3] = max(math.log(p_l3), LP_MIN)
-            x[4] = max(math.log(p_un), LP_MIN)
-            x[5] = math.log1p(mass)
-            x[6] = math.log1p(n3p)
-            x[7] = math.log1p(t2)
-            x[8] = 1.0 if t2 > 0 else 0.0
-            x[9] = math.log1p(t3)
-            x[10] = 1.0 if t3 > 0 else 0.0
-            x[11] = math.log1p(tca)
-            x[12] = math.log1p(cca)
-            x[13:17] = 0.0
-            x[13 + bkt] = 1.0
-            x[17] = i / max(m - 1, 1)
-            x[18] = math.log1p(m)
-            x[19] = 1.0 if i == 1 else 0.0
-            L[n, 0] = x[0]
-            L[n, 1] = x[1]
-            L[n, 2] = x[2]
-            L[n, 3] = x[3]
-            L[n, 4] = x[4]
+            ctx = ids[max(0, i - 3):i]
+            X[n] = fm.features(ctx, i)
+            L[n] = fm.labels(ctx, wid)
             n += 1
             if n == len(X):
                 X = np.resize(X, (len(X) * 2, NF))
                 L = np.resize(L, (len(L) * 2, NEXP))
-            e3.update(wid)                       # causal state advance
+            mixer.experts[2].update(wid)     # causal state advance
         if (si + 1) % 2000 == 0:
             print(f"  [{desc}] sent {si+1}/{len(sents)}  pos {n:,}  "
                   f"({time.time()-t0:.0f}s)", flush=True)
@@ -250,6 +299,12 @@ def report(name, A, L, n=1):
 
 def main():
     streams, mixer = build()
+    if "--collect" in sys.argv:
+        get_data(mixer, streams, force=True)
+        for k in ("train", "valid", "test"):
+            d = np.load(os.path.join(CACHE_DIR, f"gate_{k}.npz"))
+            print(f"  gate_{k}.npz: X{d['X'].shape} L{d['L'].shape}")
+        return
     data = get_data(mixer, streams)
     for split in ("train", "valid", "test"):
         X, L = data[split]
@@ -263,9 +318,9 @@ def main():
     print("== frozen-expert baselines (same test stream) ==")
     uni = np.full((len(Xte), NEXP), 1.0 / NEXP)
     report("equal mix (static)", uni, Lte)
-    A = np.tile(train_linear(Xtr, Ltr, cols=[13])(Xtr[:1]).ravel(), (len(Xte), 1))
+    A = np.tile(train_linear(Xtr, Ltr, cols=[18])(Xtr[:1]).ravel(), (len(Xte), 1))
     report("global static alpha (learned)", A, Lte)
-    Abkt = train_linear(Xtr, Ltr, cols=[13, 14, 15, 16])(Xte)
+    Abkt = train_linear(Xtr, Ltr, cols=[18, 19, 20, 21])(Xte)
     report("bucket softmax, static (learned)", Abkt, Lte)
 
     print("== neural gate ==")
@@ -290,7 +345,7 @@ def main():
     print(f"  vs static bucket: gate wins on {float((diff>0).mean()):.1%} of "
           f"positions, mean log-gain {float(diff.mean()):+.4f}")
     for bkt in range(4):
-        m = Xte[:, 13 + bkt] > 0.5
+        m = Xte[:, 18 + bkt] > 0.5
         if m.sum():
             d = diff[m]
             print(f"    bucket {bkt}: n={int(m.sum()):>7,}  "

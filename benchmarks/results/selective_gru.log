@@ -1,11 +1,12 @@
-selective GRU activation (WT-2 test) — realizable vs oracle
-always-on 6-gate: 90.28 (GRU 100%)
-oracle bound: 100% 57.35 | 50% 57.35 | 25% 60.69 | 10% 70.68
+selective GRU activation (WT-2 test) — realizable rows are normalized LMs;
+the per-position 'oracle' rows below are UNNORMALIZED diagnostics (vocabulary mass > 1), not achievable bounds
+always-on 6-gate: 117.86 (GRU 100%)
+per-position best expert: 100% 57.35 | 50% 57.35 | 25% 60.69 | 10% 70.68
 
-tau=0.00: GRU on 100.0% -> PP   90.28
-tau=0.02: GRU on  46.7% -> PP   90.69
-tau=0.05: GRU on  39.3% -> PP   90.95
-tau=0.10: GRU on  33.3% -> PP   91.29
-tau=0.20: GRU on  26.9% -> PP   91.89
-tau=0.30: GRU on  22.7% -> PP   92.53
-tau=0.50: GRU on  16.9% -> PP   93.78
+tau=0.00: GRU on 100.0% -> PP  117.86
+tau=0.02: GRU on 100.0% -> PP  117.86
+tau=0.05: GRU on 100.0% -> PP  117.86
+tau=0.10: GRU on 100.0% -> PP  117.86
+tau=0.20: GRU on 100.0% -> PP  117.86
+tau=0.30: GRU on  99.9% -> PP  117.86
+tau=0.50: GRU on  99.0% -> PP  118.07

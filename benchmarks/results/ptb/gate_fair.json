@@ -1,0 +1,16 @@
+{
+  "corpus": "PTB",
+  "h": 128,
+  "kb": 15.5,
+  "cv_valid_pp": 92.18,
+  "test_pp": 87.77,
+  "cv_curve": {
+    "24": 92.71,
+    "64": 92.52,
+    "128": 92.18,
+    "256": 98.27
+  },
+  "trained_on": "valid",
+  "h_selected_by": "2-fold CV on valid",
+  "n_features": 24
+}

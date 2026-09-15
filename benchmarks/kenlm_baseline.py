@@ -47,6 +47,7 @@ def main():
         paths[split] = p
 
     results = {}
+    sizes = {}
     for o in ORDERS:
         arpa = os.path.join(tmp, f"model{o}.arpa")
         subprocess.run(
@@ -68,6 +69,7 @@ def main():
             row[split] = math.exp(-s10 * math.log(10) / n)
         results[o] = row
         mb = os.path.getsize(arpa) / 1e6
+        sizes[o] = mb
         print(f"  {o}-gram  train {row['train']:.2f}  valid {row['valid']:.2f}"
               f"  test {row['test']:.2f}  ({mb:.1f} MB arpa)")
 
@@ -76,7 +78,10 @@ def main():
                 f"{CORPUS.upper()}\n")
         for o, row in results.items():
             f.write(f"{o}-gram: train {row['train']:.2f} valid {row['valid']:.2f}"
-                    f" test {row['test']:.2f}\n")
+                    f" test {row['test']:.2f}  arpa {sizes[o]:.1f} MB\n")
+        f.write("note: ARPA text size. The query-time binary trie (what a "
+                "deployment ships) is smaller, but `build_binary` is not part "
+                "of this environment, so no binary size is claimed anywhere.\n")
 
 
 def find_lmplz():

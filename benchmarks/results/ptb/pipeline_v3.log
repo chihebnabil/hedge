@@ -1,0 +1,181 @@
+
+=== [PTB] collect SKIPPED (SKIP_COLLECT=1, npz present) ===
+    (2026-09-15T08:34:10Z)
+test_matches_rescan_over_a_stream (tests.test_gate.TestCacheTop1Incremental.test_matches_rescan_over_a_stream) ... ok
+test_no_feature_column_equals_a_label_column (tests.test_gate.TestCachedArtifactsHaveNoLeak.test_no_feature_column_equals_a_label_column) ... ok
+test_feature_width_and_no_nan (tests.test_gate.TestFeaturesAreCausal.test_feature_width_and_no_nan) ... ok
+test_features_do_not_depend_on_the_scored_word (tests.test_gate.TestFeaturesAreCausal.test_features_do_not_depend_on_the_scored_word)
+Same context, different futures -> identical feature rows. ...   [a] done: 7 positions in 0s
+  [b] done: 8 positions in 0s
+ok
+test_labels_are_the_target_side_only (tests.test_gate.TestFeaturesAreCausal.test_labels_are_the_target_side_only) ... ok
+test_context_only_mixture_is_a_distribution (tests.test_gate.TestMixtureIsNormalized.test_context_only_mixture_is_a_distribution) ... ok
+test_each_expert_is_a_distribution (tests.test_gate.TestMixtureIsNormalized.test_each_expert_is_a_distribution) ... ok
+test_top1_is_a_real_expert_pick (tests.test_gate.TestMixtureIsNormalized.test_top1_is_a_real_expert_pick) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 1.137s
+
+OK
+
+=== [PTB] money table + gate-size sweep ===
+    (2026-09-15T08:34:12Z)
+loading splits ...
+  experts per position: 6  (kn3, lag2, cache, lag3, uni, gru)
+== the money table (PTB test, 75,623 aligned positions) ==
+  pure GRU                           PP=   103.01  [13.1 MB fp32]
+  pure KN3 (anchor)                  PP=   165.15  [9.2 MB counts]
+  gate[5 experts]                    PP=   226.71  [statistical experts + gate 7.5 KB]
+  fixed-lambda KN3+GRU               PP=    92.65  [lambda*=0.28 on KN3, GRU gets 0.72; tuned on valid; 22.3 MB]
+  static-alpha (6 experts, train-fit) PP=   101.74  [alpha kn3 0.60 lag2 0.00 cache 0.00 lag3 0.06 uni 0.00 gru 0.34]
+  static-alpha (6 experts, VALID-fit) PP=    89.71  [alpha kn3 0.23 lag2 0.01 cache 0.05 lag3 0.01 uni 0.01 gru 0.68]
+    [gate-size sweep: hidden size selected on VALID only]
+    [gate h= 24    2.9 KB  valid  150.17  test  141.16]
+    [gate h= 64    7.8 KB  valid  146.76  test  138.19]
+    [gate h=128   15.5 KB  valid  147.07  test  138.32]
+    [gate h=256   31.0 KB  valid  154.29  test  144.78]
+  GATE hybrid (6 experts)            PP=   138.19  [h=64, gate 7.8 KB, valid 146.76]
+    [router tuned on VALID only — same budget as lambda* and alpha; h by 2-fold CV inside valid]
+    [valid-tuned router h= 24: CV valid PP 92.71]
+    [valid-tuned router h= 64: CV valid PP 92.52]
+    [valid-tuned router h=128: CV valid PP 92.18]
+    [valid-tuned router h=256: CV valid PP 98.27]
+  ROUTER, valid-tuned (h by CV)      PP=    87.77  [h=128, gate 15.5 KB, CV valid 92.18]
+  router over 5 stat. experts, valid-tuned PP=   132.82  [h=128, gate 15.0 KB, no GRU]
+  best single expert (hindsight)     PP=   103.01  [normalized bound: always pick gru]
+  per-position best expert           PP=    44.37  [UNNORMALIZED diagnostic: mass > 1, not achievable by a mixture]
+== verdict ==
+  per-position best expert (UNNORMALIZED diagnostic, mass > 1): 44.37 — no normalized mixture can reach this
+  train-trained router 138.19 LOSES to the strongest tuned baseline (fixed-lambda 92.65 / static-valid 89.71) on PTB
+  valid-tuned router 87.77 BEATS the strongest tuned baseline (fixed-lambda 92.65 / static-valid 89.71) on PTB
+
+=== [PTB] seed audit (3 seeds, mean/sd + ensembles) ===
+    (2026-09-15T08:36:49Z)
+== seed audit: ROUTER valid-tuned h=128 (CV-selected), 15 ep ==
+  [router-valid] seed 0: test PP 87.77
+  [router-valid] seed 1: test PP 87.89
+  [router-valid] seed 2: test PP 87.86
+  => router-valid: 87.84 +/- 0.06 (3 seeds)
+  => router-valid: 3-router ENSEMBLE PP 87.74
+== seed audit: static-alpha (6 experts, VALID-fit) ==
+  [static-alpha-valid] seed 0: test PP 89.71
+  [static-alpha-valid] seed 1: test PP 89.71
+  [static-alpha-valid] seed 2: test PP 89.71
+  => static-alpha-valid: 89.71 +/- 0.00 (3 seeds)
+  => static-alpha-valid: 3-router ENSEMBLE PP 89.71
+== seed audit: static-alpha (6 experts, train-fit) ==
+  [static-alpha-train] seed 0: test PP 101.74
+  [static-alpha-train] seed 1: test PP 101.87
+  [static-alpha-train] seed 2: test PP 102.02
+  => static-alpha-train: 101.88 +/- 0.14 (3 seeds)
+  => static-alpha-train: 3-router ENSEMBLE PP 101.88
+== context: the train-trained router (valid-selected h=64) is a single-seed negative control; see the 4-size sweep in money_table.log ==
+
+=== [PTB] selective GRU activation ===
+    (2026-09-15T08:37:12Z)
+== selective GRU activation (PTB, realizable) ==
+  5-expert router (valid-tuned, h=128): test PP 132.82 (15.0 KB)
+  6-expert router (valid-tuned, h=128): CV valid 92.18  test 87.77   curve h24=92.7 h64=92.5 h128=92.2 h256=98.3
+  tau | GRU usage | test PP
+  0.00 |    100.0% |   87.77
+  0.02 |    100.0% |   87.77
+  0.05 |    100.0% |   87.77
+  0.10 |    100.0% |   87.77
+  0.20 |    100.0% |   87.77
+  0.30 |     99.6% |   87.81
+  0.50 |     89.7% |   89.86
+
+=== [PTB] router diagnostic (why routing does not transfer) ===
+    (2026-09-15T08:37:50Z)
+router diagnostic — PTB (cached train-trained gate h=64)
+  [train] 851,095 positions
+  expert PP      : kn3=34.7  lag2=135.8  cache=1739.4  lag3=177.5  uni=1048.6  gru=46.6
+  uniform alpha  : 46.43
+  static train-fit: 28.41   alpha 0.60 0.00 0.00 0.06 0.00 0.34
+  static valid-fit: 32.65   alpha 0.23 0.01 0.05 0.01 0.01 0.68
+  router PP      : 20.61
+  router's mean alpha used statically: 29.78
+  mean alpha     : kn3=0.451 lag2=0.134 cache=0.000 lag3=0.132 uni=0.000 gru=0.282
+  [valid] 67,396 positions
+  expert PP      : kn3=178.1  lag2=1335.0  cache=1780.2  lag3=2035.6  uni=1048.7  gru=111.8
+  uniform alpha  : 144.49
+  static train-fit: 107.78   alpha 0.60 0.00 0.00 0.06 0.00 0.34
+  static valid-fit: 93.98   alpha 0.23 0.01 0.05 0.01 0.01 0.68
+  router PP      : 146.76
+  router's mean alpha used statically: 112.34
+  mean alpha     : kn3=0.399 lag2=0.108 cache=0.000 lag3=0.124 uni=0.000 gru=0.370
+  [test] 75,623 positions
+  expert PP      : kn3=165.1  lag2=1220.3  cache=1615.7  lag3=1879.1  uni=992.0  gru=103.0
+  uniform alpha  : 138.45
+  static train-fit: 101.74   alpha 0.60 0.00 0.00 0.06 0.00 0.34
+  static valid-fit: 89.71   alpha 0.23 0.01 0.05 0.01 0.01 0.68
+  router PP      : 138.19
+  router's mean alpha used statically: 105.40
+  mean alpha     : kn3=0.402 lag2=0.105 cache=0.000 lag3=0.121 uni=0.000 gru=0.371
+  reading: if 'router PP' >> 'router's mean alpha used statically', the per-context modulation is the problem, not the average trust it learned; compare the expert PP rows across splits to see the reliability shift it memorized.
+  wrote benchmarks/results/ptb/router_diagnostic.log
+
+=== [PTB] energy / latency harness ===
+    (2026-09-15T08:38:02Z)
+== energy harness: PTB, 200 test sentences, lam*=0.28 (weight on KN3), 1 torch thread(s), 5 interleaved rounds, TDP proxy 15 W ==
+  router: valid-tuned h=128 (the paper's headline router)
+  [round 1/5 done]
+  [round 2/5 done]
+  [round 3/5 done]
+  [round 4/5 done]
+  [round 5/5 done]
+  kn3            wall   0.0105 ms/tok (min 0.0061 / max 0.0140)   cpu   0.0062 ms/tok   ~  0.157 mJ/tok   (n=2,752)
+  mixer5         wall   0.0206 ms/tok (min 0.0175 / max 0.0327)   cpu   0.0174 ms/tok   ~  0.309 mJ/tok   (n=2,752)
+  router-only    wall   0.4899 ms/tok (min 0.4792 / max 0.5484)   cpu   0.3934 ms/tok   ~  7.349 mJ/tok   (n=2,752)
+  gru            wall   2.7459 ms/tok (min 2.2309 / max 3.0856)   cpu   2.2628 ms/tok   ~ 41.188 mJ/tok   (n=2,752)
+  fixed-lam      wall   2.8522 ms/tok (min 2.4349 / max 3.0293)   cpu   2.3113 ms/tok   ~ 42.784 mJ/tok   (n=2,752)
+  gate6 (full)   wall   3.5380 ms/tok (min 3.4272 / max 4.0986)   cpu   2.9928 ms/tok   ~ 53.070 mJ/tok   (n=2,752)
+
+  router overhead vs fixed interpolation: +0.6858 ms/tok (+24.0%)
+  router-only marginal cost: 0.4899 ms/tok = 13.8% of the full system
+  WARNING: the GRU alone measured FASTER than a system that contains it — machine noise; do not quote these rows
+
+  sizes: tri 9.2 MB | lag2 3.1 MB | lag3 3.2 MB | cache+uni 0.1 MB | router 15.5 KB | GRU 13.1 MB fp32
+
+=== [PTB] normalization audit (current causal router, must be Z=1) ===
+    (2026-09-15T08:40:24Z)
+== normalization audit: PTB, causal router, 150 sampled positions ==
+  artifacts: benchmarks/results/ptb  X(75623, 24) L(75623, 6)
+  feature columns identical to a label column: none
+  router: h=128, 24 input features
+  reported test PP over all 75,623 positions: 87.77
+    25/150 positions (6s)
+    50/150 positions (12s)
+    75/150 positions (18s)
+    100/150 positions (24s)
+    125/150 positions (28s)
+    150/150 positions (35s)
+
+  normalization audit — PTB, causal (context-only) router
+  sampled positions                : 150
+  reported test PP (all positions) : 87.77
+  reported PP on the sample        : 65.08
+  mean log Z(ctx) over vocabulary  : -0.0400   (mass x0.961)
+  NORMALIZED PP on the sample      : 67.74
+  implied deflation of the reported number: x0.96
+  a mixture LM must have Z = 1 at every context; Z > 1 means the
+  router's weights depend on the word being scored and the perplexity
+  is not comparable to a normalized baseline.
+
+  wrote benchmarks/results/ptb/normalization_audit.log
+
+=== [PTB] normalization audit (invalidated v1 leaky router) ===
+    (2026-09-15T08:41:10Z)
+== normalization audit: PTB, v1 LEAKY router, 100 sampled positions ==
+  artifacts: benchmarks/results/ptb/legacy_leaky_v1  X(75623, 20) L(75623, 6)
+  feature columns identical to a label column: [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
+Traceback (most recent call last):
+  File "/workspaces/hedge/benchmarks/normalization_audit.py", line 276, in <module>
+    main()
+  File "/workspaces/hedge/benchmarks/normalization_audit.py", line 142, in main
+    z = np.load(os.path.join(res, "gate_mlp_h128.npz"))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vscode/.local/lib/python3.12/site-packages/numpy/lib/_npyio_impl.py", line 454, in load
+    fid = stack.enter_context(open(os.fspath(file), "rb"))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'benchmarks/results/ptb/legacy_leaky_v1/gate_mlp_h128.npz'

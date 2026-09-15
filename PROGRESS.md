@@ -59,7 +59,7 @@ _Last updated: 2026-09-13_
 - [x] Verdict recorded honestly — conference path live; remaining: 3-seed,
       PTB, energy numbers (Phase 5-6)
 
-### Phase 5 — Second corpus (PTB) ✅ COMPLETE (2026-09-12)
+### Phase 5 — Second corpus (PTB) ✅ COMPLETE (2026-09-12) — ⚠️ router rows INVALIDATED (Phase 8)
 - [x] Download PTB (standard Mikolov split), build gold streams + trigram pickle
 - [x] Rebuild 5 experts, collect gate data, train PTB GRU (recipe v3 verbatim,
       30/30 epochs, best valid 123.6 @ep27; aligned scores exact-match rows)
@@ -70,7 +70,7 @@ _Last updated: 2026-09-13_
       report, doesn't touch the load-bearing claim. Full numbers: see
       PAPER_NOTES.md §9.
 
-### Phase 6 — Ablations & robustness ✅ COMPLETE (2026-09-12)
+### Phase 6 — Ablations & robustness ✅ COMPLETE (2026-09-12) — ⚠️ gate rows, cost table and selective activation INVALIDATED (Phase 8); 5-gram fix and KenLM baseline stand
 - [x] Gate-size sweep on both corpora (h=24/64/128/256; optima: WT-2 h=128
       13.5 KB, PTB h=24 2.6 KB — valid selection picks right one; table in
       PAPER_NOTES §10; PTB money table updated to GATE 68.02 @2.6 KB)
@@ -82,6 +82,61 @@ _Last updated: 2026-09-13_
 - [x] Energy/latency harness (benchmarks/energy_harness.py): full hybrid
       3.6 ms/tok WT-2 / 1.0 ms/tok PTB on 4 CPU cores; gate overhead ≈8%
       or less; sizes 69 MB / 29 MB. Tables in PAPER_NOTES §10
+
+### Phase 8 — Pre-submission audit ✅ COMPLETE (2026-09-15) — **the v1 headline was an artifact**
+- [x] Accuracy audit of `paper/main.tex` against the artifacts found a fatal
+      flaw: `gate_lm.collect()` stored `x[0:5] = log p_i(w_gold)` and then
+      `L[:, 0:5] = x[:, 0:5]` — **the router's features were the labels**
+      (feature 12 was the gold word's cache count). Verified:
+      `np.array_equal(X[:, :5], L[:, :5]) == True` on all six splits.
+- [x] Consequence measured: the "mixture" summed to **2.66 (WT-2) / 2.56 (PTB)**
+      over the vocabulary instead of 1.000 (baselines: 1.000), so every router
+      perplexity was deflated by that factor — 90.3 → ≈240, 68.0 → ≈174. The
+      claim inverted. New tool: `benchmarks/normalization_audit.py`
+      (`--legacy` re-measures the artifact from the archived npz files).
+- [x] Second protocol error: the `static-alpha` baseline was fit on **train**
+      while λ* and the router's hidden size were selected on **valid**. Fit on
+      valid it reaches 119.14 (WT-2) / 89.71 (PTB), not 170.97 / 101.74 — the
+      "static mixing fails badly" row was a straw man.
+- [x] Fix: `gate_lm.FeatMaker` — 24 causal, candidate-independent features
+      (5 expert confidences in their own favourites, 5 agreement flags, 14
+      context stats); non-causal sentence-length/position-fraction features
+      dropped; `mixer_lm` grew `top1()` on every expert; every npz re-collected.
+- [x] Guards: `gate_hybrid.assert_no_label_leak()` (refuses to load a leaky
+      dataset), `tests/test_gate.py` (8 tests: features identical for diverging
+      futures, every expert sums to 1, any context-only mixture sums to 1,
+      cache top1 == rescan, no feature/label column identity in the npz files).
+- [x] Budget-matched protocol added: `fair_router()` tunes the router on
+      validation only, h by 2-fold CV inside valid; the money table now reports
+      train-fit and valid-fit static-α, λ with its semantics (λ = weight on
+      KN3), a normalized "best single expert" bound, and the per-position max
+      relabelled as an unnormalized diagnostic.
+- [x] **Corrected verdict:** router (valid-tuned, 15.5 KB) 117.86 WT-2 /
+      87.77 PTB vs static-α (valid-fit) 119.14 / 89.71 (−1.1% / −2.2%;
+      3-seed sd 0.29 / 0.06) and vs fixed-λ 135.84 / 92.65 (−13.2% / −5.3%).
+      Train-trained router: 250.79 / 138.19 — worse than uniform mixing
+      (182.56 / 138.44). Mechanism: expert reliability is not stationary
+      (`benchmarks/router_diagnostic.py`).
+- [x] Cost harness rebuilt: single torch thread, ≥5 interleaved rounds,
+      min-of-rounds, `router-only` and `static6` rows, containment assertion
+      (the v1 table had the GRU alone at 5.09 ms/tok vs 3.60 for a system
+      containing it — impossible).
+- [x] Also fixed in the paper: WT-2 corpus stats (were the literature's
+      2.0M/214k/245k/33k; actual gold streams 1,927,034/201,797/226,731,
+      vocab 28,714), λ direction claim, "identical experts" claim (the
+      baseline uses 2 of 6), per-corpus footprints (now measured into
+      `nn_meta.json` by `benchmarks/footprint_meta.py`), the router-feature
+      description, the "largest learnable surface" claim, the oracle-as-bound
+      claim, and the selective-activation claim (dead: the corrected router
+      keeps the GRU on for 99.0%/89.7% of tokens at τ=0.5).
+- [x] `paper/submission/` is now GENERATED from `paper/main.tex`
+      (`scripts/make_submission.py`, ACL `review` option = anonymous + line
+      numbers). The hand-written copy it replaces was not ACL-format and
+      misattributed five references.
+- [x] Invalidated artifacts + the producing revision (`9d2eac4`) archived in
+      `benchmarks/results/*/legacy_leaky_v1/` with a README; one-command
+      regeneration via `bash scripts/run_paper_pipeline.sh {wt2|ptb}`.
+      Full forensics: PAPER_NOTES §12.
 
 ### Phase 7 — Write-up ⬜ PENDING
 - [x] Draft written: `paper/main.tex` + `references.bib` (ACL style, 4 pp,
@@ -112,21 +167,34 @@ _Last updated: 2026-09-13_
 
 ---
 
-## Results ledger (validated numbers, WT-2 test, 217,004 positions)
+## Results ledger (WT-2 test, 217,004 aligned positions)
+
+Authoritative version: **PAPER_NOTES §0**. Rows marked ⚠️ came from the leaky
+protocol (Phase 8) and are kept only as a record.
 
 | System | Test PP ↓ | Status |
 |---|---|---|
 | MKN trigram (ds=1.0) | 300.15 (protocol 306.1 = untuned) | validated |
 | Repo BEAST (fixed prior) | 296.35 | validated (= published) |
 | Repo BEAST (tuned) | 292.4 | validated (= published) |
+| pure KN3 (ds=1.15, the expert used everywhere) | 296.23 | validated |
+| KenLM 5-gram (toolkit defaults, aligned) | 250.89 | validated |
 | Equal mix (5 experts) | 263.85 | validated |
 | Static bucket gate | 256.5 | validated |
-| Online bucket mixer (valid-warmed, frozen) | **199.50** | validated |
-| MLP gate, train-trained (6.5 KB) | **99.7** | validated, stable |
-| MLP gate, valid-trained | 90–111 (seed-dependent) | high variance |
-| Hindsight oracle (5 experts) | **89.11** | bound |
+| Online bucket mixer (valid-warmed, frozen) | 199.50 | validated |
 | GRU expert (8.2M, epoch-11) | 146.85 aligned / 119.20 batchified | final (§3) |
-| Hybrid (gate + GRU, 6 experts) | **90.28** | §8 |
+| Uniform mixture (6 experts) | 182.56 | validated |
+| fixed-λ KN3+GRU (λ*=0.21 on KN3, valid) | 135.84 | validated |
+| static-α (6), train-fit | 170.97 | validated |
+| **static-α (6), valid-fit** | **119.14** | validated |
+| **router (6, causal), valid-tuned h=128** | **117.86** (3 seeds 118.06±0.29) | validated |
+| router (6, causal), train-trained | 250.79 | negative control |
+| router (5 stat. experts), valid-tuned | 194.47 | validated |
+| best single expert (normalized bound) | 146.85 (gru) | validated |
+| per-position best expert | (57.35) | unnormalized diagnostic |
+| ⚠️ MLP gate, train-trained (leaky features) | ~~99.7~~ | INVALID (Phase 8) |
+| ⚠️ Hybrid gate + GRU (leaky features) | ~~90.28~~ | INVALID (Phase 8) |
+| ⚠️ Hindsight "oracle" (5 experts) | ~~89.11~~ | not a bound (mass > 1) |
 
 ## Decisions log
 - 2026-09-10: **Recipe v2 (clip 1.0, Adam 3e-3, bs64/tsl32, 30ep) killed at
@@ -186,9 +254,18 @@ _Last updated: 2026-09-13_
 ## Where things live
 - **Paper dossier (stable findings, negative results, protocol, decision
   tree, paper TODO): [PAPER_NOTES.md](PAPER_NOTES.md) — keep it current**
-- Scripts: `mixer_lm.py`, `mixer_cli.py`, `gate_lm.py`, `gate_lm2.py`,
-  `gate_lm3.py`, `gate_lm4.py`, `gate_hybrid.py`, `nn_expert.py`,
-  `progress.py`
+- Scripts: `mixer_lm.py`, `mixer_cli.py`, `gate_lm.py` (FeatMaker = the causal
+  feature contract), `gate_lm2.py`, `gate_lm3.py`, `gate_lm4.py`,
+  `gate_hybrid.py` (main table + `fair_router`), `nn_expert.py`,
+  `hybrid_cli.py`, `seed_audit.py`, `progress.py`
+- Benchmarks/audits: `benchmarks/run_paper_pipeline.sh` driver lives in
+  `scripts/`, plus `normalization_audit.py`, `router_diagnostic.py`,
+  `energy_harness.py`, `selective_gru.py`, `footprint_meta.py`,
+  `kenlm_baseline.py`, `fix_5gram.py`, `gate_sweep.py`
+- Paper: `paper/main.tex` (source of truth) →
+  `python scripts/make_submission.py` → `paper/submission/` (never hand-edit)
+- Invalidated v1 artifacts: `benchmarks/results/{,ptb/}legacy_leaky_v1/`
+  (+ README explaining exactly why)
 - Data caches: `benchmarks/results/gate_{train,valid,test}.npz` (per-position
   expert votes + evidence), `gold_streams.pkl`, `beast_trigram.pkl`
 - Training artifacts: `benchmarks/results/nn_gru_best.pt` (+ `nn_logp_*.npy`

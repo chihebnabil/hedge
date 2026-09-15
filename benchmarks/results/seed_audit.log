@@ -1,19 +1,19 @@
-== seed audit: GATE(6) train-trained h=128, 12 ep ==
-  [gate6-train] seed 0: test PP 90.28
-  [gate6-train] seed 1: test PP 125.57
-  [gate6-train] seed 2: test PP 87.47
-  => gate6-train: 101.11 ± 21.23 (3 seeds)
-  => gate6-train: 3-gate ENSEMBLE PP 90.24
-== seed audit: GATE(6) valid-trained h=64, 15 ep ==
-  [gate6-valid] seed 0: test PP 77.49
-  [gate6-valid] seed 1: test PP 81.36
-  [gate6-valid] seed 2: test PP 85.77
-  => gate6-valid: 81.54 ± 4.14 (3 seeds)
-  => gate6-valid: 3-gate ENSEMBLE PP 79.18
-== seed audit: static-alpha (6 experts) ==
-  [static-alpha] seed 0: test PP 170.97
-  [static-alpha] seed 1: test PP 170.68
-  [static-alpha] seed 2: test PP 171.93
-  => static-alpha: 171.19 ± 0.66 (3 seeds)
-  => static-alpha: 3-gate ENSEMBLE PP 171.19
-== anchors (seed 0, from gate_hybrid table): gate6-train 90.28 | gate6-valid 77.49 | static-alpha 170.97 ==
+== seed audit: ROUTER valid-tuned h=128 (CV-selected), 15 ep ==
+  [router-valid] seed 0: test PP 117.86
+  [router-valid] seed 1: test PP 117.93
+  [router-valid] seed 2: test PP 118.40
+  => router-valid: 118.06 +/- 0.29 (3 seeds)
+  => router-valid: 3-router ENSEMBLE PP 117.60
+== seed audit: static-alpha (6 experts, VALID-fit) ==
+  [static-alpha-valid] seed 0: test PP 119.14
+  [static-alpha-valid] seed 1: test PP 119.14
+  [static-alpha-valid] seed 2: test PP 119.15
+  => static-alpha-valid: 119.14 +/- 0.01 (3 seeds)
+  => static-alpha-valid: 3-router ENSEMBLE PP 119.14
+== seed audit: static-alpha (6 experts, train-fit) ==
+  [static-alpha-train] seed 0: test PP 170.97
+  [static-alpha-train] seed 1: test PP 170.68
+  [static-alpha-train] seed 2: test PP 171.93
+  => static-alpha-train: 171.19 +/- 0.66 (3 seeds)
+  => static-alpha-train: 3-router ENSEMBLE PP 171.19
+== context: the train-trained router (valid-selected h=256) is a single-seed negative control; see the 4-size sweep in money_table.log ==

@@ -6,10 +6,11 @@ minority of tokens — the selective-GRU oracle hits full oracle PP while
 running the GRU on only ~50% of positions. This script measures the
 REALIZABLE version:
 
-  skip rule (fully causal): consult the GRU iff the trained 6-expert gate's
-  own GRU weight alpha_gru(x) >= tau. The gate's input is the 5 cheap votes
-  + 15 evidence features — it never reads the GRU's output, so the decision
-  costs nothing and is available BEFORE the GRU runs.
+  skip rule (fully causal): consult the GRU iff the router's own GRU weight
+  alpha_gru(x) >= tau. The router's input is context-only (gate_lm.FeatMaker:
+  expert confidences + agreement + evidence) — it never reads the GRU's
+  output, so the decision costs nothing and is available BEFORE the GRU runs.
+  The router here is the headline one: tuned on validation only.
     - skipped tokens: mixture = the gate's cheap weights renormalized
     - consulted tokens: full 6-expert gate mixture
 
@@ -27,10 +28,9 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from gate_hybrid import load_split, train_gate, nll_pp
+from gate_hybrid import fair_router, load_split, nll_pp
 
 OUT = os.environ.get("HEDGE_RESULTS", "benchmarks/results")
-H_SEL = {"ptb": 24}.get(os.path.basename(OUT.rstrip("/")), 128)
 TAUS = (0.0, 0.02, 0.05, 0.10, 0.20, 0.30, 0.50)
 
 
@@ -67,21 +67,28 @@ def main():
     for k in ("train", "valid", "test"):
         Y[k], L[k] = load_split(k)
 
-    pred5, kb5 = train_gate(Y["train"], L["train"][:, :5], nexp=5)
-    print(f"  5-expert gate: test PP "
+    # the router used everywhere else as the headline: tuned on VALID only
+    pred5, kb5, h5, cv5, _c5, _w5 = fair_router(
+        Y["valid"], L["valid"][:, :5], 5, verbose=False)
+    print(f"  5-expert router (valid-tuned, h={h5}): test PP "
           f"{nll_pp(pred5(Y['test']), L['test'][:, :5]):.2f} ({kb5:.1f} KB)")
 
-    pred6, kb6 = train_gate(Y["train"], L["train"], 6, hidden=H_SEL)
-    va = nll_pp(pred6(Y["valid"]), L["valid"])
+    pred6, kb6, H_SEL, cv6, curve6, _w6 = fair_router(
+        Y["valid"], L["valid"], 6, verbose=False)
     pp6 = nll_pp(pred6(Y["test"]), L["test"])
-    print(f"  6-expert gate (h={H_SEL}): valid {va:.2f}  test {pp6:.2f}")
+    print(f"  6-expert router (valid-tuned, h={H_SEL}): CV valid {cv6:.2f}  "
+          f"test {pp6:.2f}   curve "
+          + " ".join(f"h{k}={v:.1f}" for k, v in sorted(curve6.items())))
 
     a6 = pred6(Y["test"])
     oc = oracle_curve(L["test"])
-    lines = [f"selective GRU activation ({corpus} test) — realizable vs oracle",
+    lines = [f"selective GRU activation ({corpus} test) — realizable rows are "
+             f"normalized LMs;",
+             "the per-position 'oracle' rows below are UNNORMALIZED "
+             "diagnostics (vocabulary mass > 1), not achievable bounds",
              f"always-on 6-gate: {pp6:.2f} (GRU 100%)",
-             f"oracle bound: 100% {oc[1.0]:.2f} | 50% {oc[0.5]:.2f} | "
-             f"25% {oc[0.25]:.2f} | 10% {oc[0.10]:.2f}", ""]
+             f"per-position best expert: 100% {oc[1.0]:.2f} | 50% {oc[0.5]:.2f}"
+             f" | 25% {oc[0.25]:.2f} | 10% {oc[0.10]:.2f}", ""]
     print("  tau | GRU usage | test PP")
     for tau in TAUS:
         pp, frac = selective_pp(a6, L["test"], tau)

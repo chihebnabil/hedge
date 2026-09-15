@@ -3,6 +3,7 @@ gate_lm2.py — Stage 2: ablations + fair-data control + stronger training.
 Runs on the cached per-position datasets from gate_lm.py (no recollection).
 
 E1 ablations:   bucket-only | evidence-only | votes-only | all features
+                (all feature blocks are causal/candidate-independent)
 E2 fair data:   gate trained on VALID only (193k) — apples-to-apples
                 against the online mixer that was warmed on valid
 E3 stronger:    hidden sweep, more epochs, weight decay, 5-seed ensemble
@@ -12,6 +13,8 @@ import math
 import os
 
 import numpy as np
+
+from gate_lm import EVID_COLS, NF, VOTE_COLS
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.environ.get("HEDGE_RESULTS",
@@ -93,10 +96,10 @@ def main():
     Xte, Lte = d["test"]
 
     FEATS = {
-        "all (20)": list(range(20)),
-        "votes only (0-4)": list(range(5)),
-        "evidence only (5-19)": list(range(5, 20)),
-        "bucket only (13-16)": [13, 14, 15, 16],
+        f"all ({NF})": list(range(NF)),
+        f"votes only ({VOTE_COLS[0]}-{VOTE_COLS[-1]})": VOTE_COLS,
+        f"evidence only ({EVID_COLS[0]}-{EVID_COLS[-1]})": EVID_COLS,
+        "bucket only (18-21)": [18, 19, 20, 21],
     }
     print("== E1: which features carry the routing signal? "
           "(train=full train, h=64, 8 epochs) ==")

@@ -1,0 +1,22 @@
+normalization audit — PTB, v1 LEAKY (candidate-conditioned) router
+sampled positions                : 100
+reported test PP (all positions) : 68.02
+reported PP on the sample        : 75.87
+mean log Z(ctx) over vocabulary  : +0.9390   (mass x2.558)
+NORMALIZED PP on the sample      : 194.05
+implied deflation of the reported number: x2.56 (normalized = reported x Z)
+a mixture LM must have Z = 1 at every context; Z > 1 means the
+router's weights depend on the word being scored and the perplexity
+is not comparable to a normalized baseline.
+ (candidate-conditioned) router
+  sampled positions                : 100
+  reported test PP (all positions) : 68.02
+  reported PP on the sample        : 75.87
+  mean log Z(ctx) over vocabulary  : +0.9390   (mass x2.558)
+  NORMALIZED PP on the sample      : 194.05
+  implied deflation of the reported number: x2.56 (normalized = reported x Z)
+  a mixture LM must have Z = 1 at every context; Z > 1 means the
+  router's weights depend on the word being scored and the perplexity
+  is not comparable to a normalized baseline.
+
+  wrote benchmarks/results/ptb/legacy_leaky_v1/normalization_audit_legacy.log

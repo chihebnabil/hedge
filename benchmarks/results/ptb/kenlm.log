@@ -1,4 +1,5 @@
 KenLM baseline (lmplz defaults), aligned protocol, PTB
-3-gram: train 18.21 valid 156.01 test 146.34
-4-gram: train 8.52 valid 147.51 test 139.79
-5-gram: train 6.70 valid 145.61 test 138.42
+3-gram: train 18.21 valid 156.01 test 146.34  arpa 26.2 MB
+4-gram: train 8.52 valid 147.51 test 139.79  arpa 56.7 MB
+5-gram: train 6.70 valid 145.61 test 138.42  arpa 94.3 MB
+note: ARPA text size. The query-time binary trie (what a deployment ships) is smaller, but `build_binary` is not part of this environment, so no binary size is claimed anywhere.

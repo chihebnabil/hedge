@@ -1,0 +1,13 @@
+{
+  "corpus": "PTB",
+  "vocab_gru": 9645,
+  "params": 3268269,
+  "gru_mb_fp32": 13.1,
+  "gru_mb_fp16": 6.5,
+  "trigram_mb": 9.2,
+  "lag2_mb": 3.1,
+  "lag3_mb": 3.2,
+  "cache_uni_mb": 0.1,
+  "statistical_mb": 15.6,
+  "system_mb": 28.7
+}

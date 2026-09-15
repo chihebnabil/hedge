@@ -1,0 +1,28 @@
+loading splits ...
+  experts per position: 6  (kn3, lag2, cache, lag3, uni, gru)
+== the money table (WT-2 test, 217,004 aligned positions) ==
+  pure GRU                           PP=   146.85  [32.7 MB fp32]
+  pure KN3 (anchor)                  PP=   296.23  [21.4 MB counts]
+  gate[5 experts]                    PP=   481.00  [statistical experts + gate 7.5 KB]
+  fixed-lambda KN3+GRU               PP=   135.84  [lambda*=0.21 on KN3, GRU gets 0.79; tuned on valid; 54.0 MB]
+  static-alpha (6 experts, train-fit) PP=   170.97  [alpha kn3 0.68 lag2 0.00 cache 0.00 lag3 0.09 uni 0.00 gru 0.23]
+  static-alpha (6 experts, VALID-fit) PP=   119.14  [alpha kn3 0.17 lag2 0.00 cache 0.11 lag3 0.00 uni 0.00 gru 0.70]
+    [gate-size sweep: hidden size selected on VALID only]
+    [gate h= 24    2.9 KB  valid  272.90  test  263.58]
+    [gate h= 64    7.8 KB  valid  262.80  test  254.17]
+    [gate h=128   15.5 KB  valid  272.52  test  263.70]
+    [gate h=256   31.0 KB  valid  259.13  test  250.79]
+  GATE hybrid (6 experts)            PP=   250.79  [h=256, gate 31.0 KB, valid 259.13]
+    [router tuned on VALID only — same budget as lambda* and alpha; h by 2-fold CV inside valid]
+    [valid-tuned router h= 24: CV valid PP 122.42]
+    [valid-tuned router h= 64: CV valid PP 122.37]
+    [valid-tuned router h=128: CV valid PP 122.08]
+    [valid-tuned router h=256: CV valid PP 122.16]
+  ROUTER, valid-tuned (h by CV)      PP=   117.86  [h=128, gate 15.5 KB, CV valid 122.08]
+  router over 5 stat. experts, valid-tuned PP=   194.47  [h=128, gate 15.0 KB, no GRU]
+  best single expert (hindsight)     PP=   146.85  [normalized bound: always pick gru]
+  per-position best expert           PP=    57.35  [UNNORMALIZED diagnostic: mass > 1, not achievable by a mixture]
+== verdict ==
+  per-position best expert (UNNORMALIZED diagnostic, mass > 1): 57.35 — no normalized mixture can reach this
+  train-trained router 250.79 LOSES to the strongest tuned baseline (fixed-lambda 135.84 / static-valid 119.14) on WT-2
+  valid-tuned router 117.86 BEATS the strongest tuned baseline (fixed-lambda 135.84 / static-valid 119.14) on WT-2

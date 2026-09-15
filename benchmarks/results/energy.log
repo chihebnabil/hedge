@@ -1,0 +1,24 @@
+== energy harness: WT-2, 200 test sentences, lam*=0.21 (weight on KN3), 1 torch thread(s), 7 interleaved rounds, TDP proxy 15 W ==
+  router: valid-tuned h=128 (the paper's headline router)
+  [round 1/7 done]
+  [round 2/7 done]
+  [round 3/7 done]
+  [round 4/7 done]
+  [round 5/7 done]
+  [round 6/7 done]
+  [round 7/7 done]
+  kn3             wall   0.0040 ms/tok (min   0.0037 / max   0.0055)   cpu   0.0040 ms/tok   ~  0.059 mJ/tok   (n=5,115)
+  mixer5          wall   0.0132 ms/tok (min   0.0113 / max   0.0153)   cpu   0.0132 ms/tok   ~  0.198 mJ/tok   (n=5,115)
+  router-only     wall   0.4393 ms/tok (min   0.3866 / max   0.5145)   cpu   0.4383 ms/tok   ~  6.589 mJ/tok   (n=5,115)
+  gru             wall   4.2072 ms/tok (min   3.6847 / max   4.4373)   cpu   4.1493 ms/tok   ~ 63.108 mJ/tok   (n=5,115)
+  fixed-lam       wall   4.2584 ms/tok (min   3.8679 / max   4.4984)   cpu   4.2077 ms/tok   ~ 63.875 mJ/tok   (n=5,115)
+  static6         wall   4.3180 ms/tok (min   3.9390 / max   4.5016)   cpu   4.2885 ms/tok   ~ 64.769 mJ/tok   (n=5,115)
+  hybrid (full)   wall   4.8881 ms/tok (min   4.3411 / max   5.1440)   cpu   4.8049 ms/tok   ~ 73.322 mJ/tok   (n=5,115)
+
+  marginal cost of ROUTING (hybrid - static6, same experts): +0.5702 ms/tok (+13.2%)
+  router-only row (features + MLP, no GRU): 0.4393 ms/tok = 9.0% of the full hybrid
+  hybrid vs 2-expert fixed interpolation: +0.6297 ms/tok (+14.8%), of which +0.0596 is evaluating four extra experts and +0.5702 is routing
+  note: the KN3 top-1 memo is cleared every round, so router-only and hybrid are worst-case (a deployed system caching per-context favourites pays less)
+  sanity: gru-alone 4.2072 vs the systems containing it (fixed-lam 4.2584, static6 4.3180, hybrid 4.8881) — containment ordering holds within 5%
+
+  sizes: tri 21.4 MB | lag2 6.9 MB | lag3 7.4 MB | cache+uni 0.3 MB | router 15.5 KB | GRU 32.7 MB fp32

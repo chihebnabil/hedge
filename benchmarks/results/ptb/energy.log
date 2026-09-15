@@ -1,9 +1,24 @@
-building lag-2 / lag-3 bigram experts ...
-== energy harness: PTB, 200 test sentences, lam*=0.28, TDP proxy 15 W ==
-  kn3          wall   0.003 ms/tok   cpu   0.003 ms/tok   ~ 0.045 mJ/tok   (n=2,752)
-  mixer5       wall   0.009 ms/tok   cpu   0.009 ms/tok   ~ 0.140 mJ/tok   (n=2,752)
-  gru          wall   1.100 ms/tok   cpu   3.968 ms/tok   ~16.495 mJ/tok   (n=2,752)
-  fixed-lam    wall   1.208 ms/tok   cpu   4.305 ms/tok   ~18.117 mJ/tok   (n=2,752)
-  gate6 (full) wall   1.022 ms/tok   cpu   3.927 ms/tok   ~15.332 mJ/tok   (n=2,752)
+== energy harness: PTB, 200 test sentences, lam*=0.28 (weight on KN3), 1 torch thread(s), 7 interleaved rounds, TDP proxy 15 W ==
+  router: valid-tuned h=128 (the paper's headline router)
+  [round 1/7 done]
+  [round 2/7 done]
+  [round 3/7 done]
+  [round 4/7 done]
+  [round 5/7 done]
+  [round 6/7 done]
+  [round 7/7 done]
+  kn3             wall   0.0041 ms/tok (min   0.0039 / max   0.0055)   cpu   0.0041 ms/tok   ~  0.062 mJ/tok   (n=2,752)
+  mixer5          wall   0.0139 ms/tok (min   0.0119 / max   0.0156)   cpu   0.0139 ms/tok   ~  0.208 mJ/tok   (n=2,752)
+  router-only     wall   0.3106 ms/tok (min   0.3000 / max   0.3360)   cpu   0.3084 ms/tok   ~  4.660 mJ/tok   (n=2,752)
+  gru             wall   0.7807 ms/tok (min   0.7521 / max   0.8914)   cpu   0.7799 ms/tok   ~ 11.711 mJ/tok   (n=2,752)
+  fixed-lam       wall   0.8486 ms/tok (min   0.7796 / max   0.9289)   cpu   0.8400 ms/tok   ~ 12.729 mJ/tok   (n=2,752)
+  static6         wall   0.8837 ms/tok (min   0.8312 / max   1.0778)   cpu   0.8810 ms/tok   ~ 13.256 mJ/tok   (n=2,752)
+  hybrid (full)   wall   1.4628 ms/tok (min   1.3383 / max   1.7384)   cpu   1.4277 ms/tok   ~ 21.943 mJ/tok   (n=2,752)
 
-  sizes: tri pickle 9.2 MB | lag2 3.1 MB | lag3 3.2 MB | cache+uni 0.1 MB | gate 2.6 KB | GRU 13.1 MB fp32
+  marginal cost of ROUTING (hybrid - static6, same experts): +0.5791 ms/tok (+65.5%)
+  router-only row (features + MLP, no GRU): 0.3106 ms/tok = 21.2% of the full hybrid
+  hybrid vs 2-expert fixed interpolation: +0.6142 ms/tok (+72.4%), of which +0.0351 is evaluating four extra experts and +0.5791 is routing
+  note: the KN3 top-1 memo is cleared every round, so router-only and hybrid are worst-case (a deployed system caching per-context favourites pays less)
+  sanity: gru-alone 0.7807 vs the systems containing it (fixed-lam 0.8486, static6 0.8837, hybrid 1.4628) — containment ordering holds within 5%
+
+  sizes: tri 9.2 MB | lag2 3.1 MB | lag3 3.2 MB | cache+uni 0.1 MB | router 15.5 KB | GRU 13.1 MB fp32

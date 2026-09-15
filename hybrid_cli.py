@@ -2,8 +2,9 @@
 hybrid_cli.py — interactive tester for the trained hybrid stack
 (5 statistical experts + GRU + neural gate, the Phase-4 system).
 
-First run trains + caches the gate (h=128, 12 ep, seed 0 — the audited
-headline config; one-time cost, saved to gate_mlp_h128.npz). Then:
+First run trains + caches the headline router (valid-tuned, hidden size by
+2-fold CV on validation — the audited config; saved to gate_fair_h<H>.npz).
+Then:
 
   python hybrid_cli.py suggest "the united states of"   # one-shot top-8
   python hybrid_cli.py complete "once upon a"           # greedy continuation
@@ -19,6 +20,7 @@ benchmark it had streamed the whole corpus first — its vote is weaker here,
 and the gate weights that vote accordingly. observe warms it up.
 """
 
+import json
 import math
 import os
 import sys
@@ -26,17 +28,28 @@ import sys
 import numpy as np
 import torch
 
-from gate_lm import LP_MIN
-from gate_lm3 import age_invariant
+from gate_lm import FeatMaker
 from mixer_lm import build
 import nn_expert
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-GATE_NPZ = os.path.join(os.environ.get(
-    "HEDGE_RESULTS", os.path.join(HERE, "benchmarks", "results")),
-    "gate_mlp_h128.npz")
+RESULTS = os.environ.get("HEDGE_RESULTS",
+                         os.path.join(HERE, "benchmarks", "results"))
+
+
+def _gate_npz():
+    """The headline router's weights (written by gate_hybrid.py): the
+    valid-tuned one if the money table has run, else the train-trained one."""
+    fair = os.path.join(RESULTS, "gate_fair.json")
+    if os.path.exists(fair):
+        with open(fair) as f:
+            return os.path.join(RESULTS, f"gate_fair_h{json.load(f)['h']}.npz")
+    from gate_hybrid import selected_h
+    return os.path.join(RESULTS, f"gate_mlp_h{selected_h(128)}.npz")
+
+
+GATE_NPZ = _gate_npz()
 NAMES = ["kn3", "lag2", "cache", "lag3", "uni", "gru"]
-NF = 20
 W1 = b1 = W2 = b2 = None
 
 
@@ -47,18 +60,14 @@ def ensure_gate():
         z = np.load(GATE_NPZ)
         W1, b1, W2, b2 = z["W1"], z["b1"], z["W2"], z["b2"]
         return
-    from gate_hybrid import load_split, train_gate, nll_pp
-    print("one-time: training the gate (h=128, 12 ep, seed 0, ~11 min)",
-          flush=True)
-    (Ytr, Ltr) = load_split("train")
+    from gate_hybrid import fair_router, load_split, nll_pp
     (Yva, Lva) = load_split("valid")
-    _, kb, (W1, b1, W2, b2) = train_gate(Ytr, Ltr, nexp=Ltr.shape[1],
-                                         hidden=128, epochs=12, seed=0,
-                                         return_weights=True)
-    va = nll_pp(_predict_np(Yva), Lva)
+    pred, kb, h, cv, _curve, wts = fair_router(Yva, Lva, nexp=Lva.shape[1])
+    te_pp = nll_pp(pred(load_split("test")[0]), load_split("test")[1])
+    W1, b1, W2, b2 = wts
     np.savez(GATE_NPZ, W1=W1, b1=b1, W2=W2, b2=b2)
-    print(f"gate valid PP {va:.2f} ({kb:.1f} KB) — saved {GATE_NPZ}",
-          flush=True)
+    print(f"valid-tuned router h={h}: CV valid PP {cv:.2f}, test PP "
+          f"{te_pp:.2f} ({kb:.1f} KB) — saved {GATE_NPZ}", flush=True)
 
 
 def _predict_np(X):
@@ -82,6 +91,7 @@ class Hybrid:
         self.w2i = self.mixer.w2i
         self.i2w = self.mixer.i2w
         self.unk = self.w2i["unk"]
+        self.fm = FeatMaker(self.mixer)
 
         torch.set_num_threads(min(4, os.cpu_count() or 1))
         torch.manual_seed(42)
@@ -93,38 +103,12 @@ class Hybrid:
         self.gru.eval()
         self.h = None
 
-    def features(self, ctx_ids, cand_id):
-        """20-dim gate input for candidate cand_id after ctx_ids
-        (mirrors gate_lm.collect + gate_lm3.age_invariant)."""
-        payload = (self.tri._counts[2].get(tuple(ctx_ids[-2:]))
-                   if len(ctx_ids) >= 2 else None)
-        if payload is None:
-            mass, n3p, bkt = 0.0, 0.0, 0
-        else:
-            mass, n3p = payload[1], payload[3]
-            bkt = 1 if mass == 1 else (2 if mass <= 5 else 3)
-        c2 = ctx_ids[-2] if len(ctx_ids) >= 2 else None
-        c3 = ctx_ids[-3] if len(ctx_ids) >= 3 else None
-        t2 = self.e_lag2.totals.get(c2, 0) if c2 is not None else 0
-        t3 = self.e_lag3.totals.get(c3, 0) if c3 is not None else 0
-        x = np.zeros((1, NF), dtype=np.float32)
-        for j, e in enumerate((self.e_kn3, self.e_lag2, self.e_cache,
-                               self.e_lag3, self.e_uni)):
-            x[0, j] = max(math.log(e.prob(cand_id, ctx_ids)), LP_MIN)
-        x[0, 5] = math.log1p(mass)
-        x[0, 6] = math.log1p(n3p)
-        x[0, 7] = math.log1p(t2)
-        x[0, 8] = 1.0 if t2 > 0 else 0.0
-        x[0, 9] = math.log1p(t3)
-        x[0, 10] = 1.0 if t3 > 0 else 0.0
-        x[0, 11] = math.log1p(len(self.e_cache.win))
-        x[0, 12] = math.log1p(self.e_cache.counts.get(cand_id, 0))
-        x[0, 13 + bkt] = 1.0
-        m = len(ctx_ids) + 1
-        x[0, 17] = len(ctx_ids) / max(m - 1, 1)
-        x[0, 18] = math.log1p(m)
-        x[0, 19] = 1.0 if len(ctx_ids) == 1 else 0.0
-        return age_invariant(x)
+    def features(self, ctx_ids):
+        """Causal, CANDIDATE-INDEPENDENT gate input (gate_lm.FeatMaker).
+        The router sees the context only, never the word being scored, so the
+        mixture below is a normalized distribution over the vocabulary.
+        The prompt is the sentence so far, so i = len(ctx_ids)."""
+        return self.fm.features(list(ctx_ids), len(ctx_ids))
 
     def gru_next(self, ids):
         """Next-token log-probs after streaming ids (carries h)."""
@@ -168,10 +152,9 @@ class Hybrid:
             cands.update(self.w2i.get(w, self.unk) for w, _ in pool)
         cands.update(gru_lp.topk(40).indices.tolist())
 
+        a = _predict_np(self.features(ctx_ids)).ravel()   # once per context
         scored = []
         for cid in cands:
-            X = self.features(ctx_ids, cid)
-            a = _predict_np(X).ravel()
             votes = np.array([math.log(max(e.prob(cid, ctx_ids), 1e-10))
                               for e in (self.e_kn3, self.e_lag2,
                                         self.e_cache, self.e_lag3,
@@ -257,7 +240,7 @@ class Hybrid:
         est.append(("gru", f"{math.exp(float(gru_lp[cid])):.5f}"))
         for name, v in est:
             print(f"    {name:<12} {v}")
-        a = _predict_np(self.features(ctx_ids, cid)).ravel()
+        a = _predict_np(self.features(ctx_ids)).ravel()
         votes = np.array([math.log(max(e.prob(cid, ctx_ids), 1e-10))
                           for e in (self.e_kn3, self.e_lag2, self.e_cache,
                                     self.e_lag3, self.e_uni)]
@@ -267,8 +250,7 @@ class Hybrid:
                                        sorted(zip(NAMES, a), key=lambda kv: -kv[1])[:3]) + ")")
 
     def reset(self):
-        self.e_cache.win.clear()
-        self.e_cache.counts.clear()
+        self.e_cache.clear()
         self.h = None
 
 

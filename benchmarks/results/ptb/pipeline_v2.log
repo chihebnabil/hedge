@@ -1,0 +1,117 @@
+
+=== [PTB] collect SKIPPED (SKIP_COLLECT=1, npz present) ===
+    (2026-09-15T08:15:16Z)
+test_matches_rescan_over_a_stream (tests.test_gate.TestCacheTop1Incremental.test_matches_rescan_over_a_stream) ... ok
+test_no_feature_column_equals_a_label_column (tests.test_gate.TestCachedArtifactsHaveNoLeak.test_no_feature_column_equals_a_label_column) ... ok
+test_feature_width_and_no_nan (tests.test_gate.TestFeaturesAreCausal.test_feature_width_and_no_nan) ... ok
+test_features_do_not_depend_on_the_scored_word (tests.test_gate.TestFeaturesAreCausal.test_features_do_not_depend_on_the_scored_word)
+Same context, different futures -> identical feature rows. ...   [a] done: 7 positions in 0s
+  [b] done: 8 positions in 0s
+ok
+test_labels_are_the_target_side_only (tests.test_gate.TestFeaturesAreCausal.test_labels_are_the_target_side_only) ... ok
+test_context_only_mixture_is_a_distribution (tests.test_gate.TestMixtureIsNormalized.test_context_only_mixture_is_a_distribution) ... ok
+test_each_expert_is_a_distribution (tests.test_gate.TestMixtureIsNormalized.test_each_expert_is_a_distribution) ... ok
+test_top1_is_a_real_expert_pick (tests.test_gate.TestMixtureIsNormalized.test_top1_is_a_real_expert_pick) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 1.691s
+
+OK
+
+=== [PTB] money table + gate-size sweep ===
+    (2026-09-15T08:15:18Z)
+loading splits ...
+  experts per position: 6  (kn3, lag2, cache, lag3, uni, gru)
+== the money table (PTB test, 75,623 aligned positions) ==
+  pure GRU                           PP=   103.01  [13.1 MB fp32]
+  pure KN3 (anchor)                  PP=   165.15  [9.2 MB counts]
+  gate[5 experts]                    PP=   226.71  [statistical experts + gate 7.5 KB]
+  fixed-lambda KN3+GRU               PP=    92.65  [lambda*=0.28 on KN3, GRU gets 0.72; tuned on valid; 22.3 MB]
+  static-alpha (6 experts, train-fit) PP=   101.74  [alpha kn3 0.60 lag2 0.00 cache 0.00 lag3 0.06 uni 0.00 gru 0.34]
+  static-alpha (6 experts, VALID-fit) PP=    89.71  [alpha kn3 0.23 lag2 0.01 cache 0.05 lag3 0.01 uni 0.01 gru 0.68]
+    [gate-size sweep: hidden size selected on VALID only]
+    [gate h= 24    2.9 KB  valid  150.17  test  141.16]
+    [gate h= 64    7.8 KB  valid  146.76  test  138.19]
+    [gate h=128   15.5 KB  valid  147.07  test  138.32]
+    [gate h=256   31.0 KB  valid  154.29  test  144.78]
+  GATE hybrid (6 experts)            PP=   138.19  [h=64, gate 7.8 KB, valid 146.76]
+  GATE hybrid, valid-trained         PP=    88.08  [fair-data control]
+  best single expert (hindsight)     PP=   103.01  [normalized bound: always pick gru]
+  per-position best expert           PP=    44.37  [UNNORMALIZED diagnostic: mass > 1, not achievable by a mixture]
+== verdict ==
+  per-position best expert (UNNORMALIZED diagnostic, mass > 1): 44.37 — no normalized mixture can reach this
+  GATE LOSES to the strongest tuned baseline on PTB (138.19 > fixed-lambda 92.65 / static-valid 89.71) — report honestly and reposition (PROGRESS.md watchlist)
+
+=== [PTB] seed audit (3 seeds, mean/sd + ensembles) ===
+    (2026-09-15T08:17:52Z)
+== seed audit: GATE(6) train-trained h=64 (valid-selected), 12 ep ==
+  [gate6-train] seed 0: test PP 138.19
+  [gate6-train] seed 1: test PP 142.87
+  [gate6-train] seed 2: test PP 139.93
+  => gate6-train: 140.33 ± 2.36 (3 seeds)
+  => gate6-train: 3-gate ENSEMBLE PP 139.42
+== seed audit: GATE(6) valid-trained h=64, 15 ep ==
+  [gate6-valid] seed 0: test PP 88.08
+  [gate6-valid] seed 1: test PP 87.99
+  [gate6-valid] seed 2: test PP 87.98
+  => gate6-valid: 88.02 ± 0.06 (3 seeds)
+  => gate6-valid: 3-gate ENSEMBLE PP 87.89
+== seed audit: static-alpha (6 experts, VALID-fit) ==
+  [static-alpha-valid] seed 0: test PP 89.71
+  [static-alpha-valid] seed 1: test PP 89.71
+  [static-alpha-valid] seed 2: test PP 89.71
+  => static-alpha-valid: 89.71 ± 0.00 (3 seeds)
+  => static-alpha-valid: 3-gate ENSEMBLE PP 89.71
+== seed audit: static-alpha (6 experts, train-fit) ==
+  [static-alpha-train] seed 0: test PP 101.74
+  [static-alpha-train] seed 1: test PP 101.87
+  [static-alpha-train] seed 2: test PP 102.02
+  => static-alpha-train: 101.88 ± 0.14 (3 seeds)
+  => static-alpha-train: 3-gate ENSEMBLE PP 101.88
+
+=== [PTB] selective GRU activation ===
+    (2026-09-15T08:19:15Z)
+== selective GRU activation (PTB, realizable) ==
+  5-expert gate: test PP 226.71 (7.5 KB)
+  6-expert gate (h=64): valid 146.76  test 138.19
+  tau | GRU usage | test PP
+  0.00 |    100.0% |  138.19
+  0.02 |     84.2% |  141.97
+  0.05 |     75.8% |  145.83
+  0.10 |     67.4% |  151.16
+  0.20 |     56.8% |  159.68
+  0.30 |     48.9% |  167.81
+  0.50 |     34.8% |  183.74
+
+=== [PTB] energy / latency harness ===
+    (2026-09-15T08:20:03Z)
+building lag-2 / lag-3 bigram experts ...
+== energy harness: PTB, 200 test sentences, lam*=0.28, TDP proxy 15 W ==
+  [round 1/3 done]
+  [round 2/3 done]
+  [round 3/3 done]
+  kn3          wall   0.011 ms/tok   cpu   0.013 ms/tok   ~ 0.162 mJ/tok   (n=2,752)
+  mixer5       wall   0.022 ms/tok   cpu   0.019 ms/tok   ~ 0.323 mJ/tok   (n=2,752)
+  gru          wall  12.453 ms/tok   cpu  25.156 ms/tok   ~186.790 mJ/tok   (n=2,752)
+  fixed-lam    wall  11.317 ms/tok   cpu  26.029 ms/tok   ~169.752 mJ/tok   (n=2,752)
+  gate6 (full) wall  11.830 ms/tok   cpu  25.818 ms/tok   ~177.451 mJ/tok   (n=2,752)
+
+  sizes: tri 9.2 MB | lag2 3.1 MB | lag3 3.2 MB | cache+uni 0.1 MB | gate 7.8 KB | GRU 13.1 MB fp32
+
+=== [PTB] footprint metadata ===
+    (2026-09-15T08:25:38Z)
+{
+  "corpus": "PTB",
+  "vocab_gru": 9645,
+  "params": 3268269,
+  "gru_mb_fp32": 13.1,
+  "gru_mb_fp16": 6.5,
+  "trigram_mb": 9.2,
+  "lag2_mb": 3.1,
+  "lag3_mb": 3.2,
+  "cache_uni_mb": 0.1,
+  "statistical_mb": 15.6,
+  "system_mb": 28.7
+}
+
+=== [PTB] pipeline complete ===

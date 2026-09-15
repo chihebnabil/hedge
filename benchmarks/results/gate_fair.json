@@ -1,0 +1,16 @@
+{
+  "corpus": "WT-2",
+  "h": 128,
+  "kb": 15.5,
+  "cv_valid_pp": 122.08,
+  "test_pp": 117.86,
+  "cv_curve": {
+    "24": 122.42,
+    "64": 122.37,
+    "128": 122.08,
+    "256": 122.16
+  },
+  "trained_on": "valid",
+  "h_selected_by": "2-fold CV on valid",
+  "n_features": 24
+}

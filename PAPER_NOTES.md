@@ -3,13 +3,99 @@
 **Purpose:** every fact, number, protocol rule and decision the paper needs,
 in one place, updated as results land. The live checklist remains
 [PROGRESS.md](PROGRESS.md); this file holds the *stable findings*.
-_Last updated: 2026-09-13 (two-corpus verdict, seed audits, cost harness all
-complete — §8–§10; workshop draft in `paper/`; two-step publication plan in
-§7)_
+_Last updated: 2026-09-15 — **§0 is the only authoritative ledger.** §1, §8,
+§9 and §10 are kept for history and are SUPERSEDED: their router numbers came
+from a leaky protocol (§12)._
 
 ---
 
-## 1. Verified numbers ledger (WikiText-2)
+## 0. READ THIS FIRST — the corrected ledger (2026-09-15)
+
+**The v1 headline was an artifact.** The router's features `[0:5]` were
+`log p_expert(w_gold)` — bit-identical to the label columns — and feature `[12]`
+was the gold word's cache count. The router's weights therefore depended on the
+word being scored, so `P(w|ctx)` was not a distribution: its mass over the
+vocabulary measured **2.66 (WT-2)** and **2.56 (PTB)** instead of 1.000, and
+every router perplexity was deflated by that factor. Normalized, the same
+trained router scores ≈240 (WT-2) / ≈174 (PTB) instead of the 90.3 / 68.0 it
+appeared to. Full forensics: §12. Reproduce:
+`python benchmarks/normalization_audit.py --legacy`.
+
+**Corrected main table** (aligned protocol; 217,004 WT-2 / 75,623 PTB
+positions; every tuned component gets validation data only;
+`benchmarks/results/{,ptb/}money_table.log`):
+
+| system | WT-2 PP | PTB PP | WT-2 MB | PTB MB |
+|---|---|---|---|---|
+| pure KN3 trigram | 296.23 | 165.15 | 21.4 | 9.2 |
+| KenLM 5-gram (defaults) | 250.89 | 138.42 | — | — |
+| pure GRU (aligned) | 146.85 | 103.01 | 32.7 | 13.1 |
+| uniform mixture (6) | 182.56 | 138.44 | 68.7 | 28.7 |
+| fixed-λ KN3+GRU (λ* on valid) | 135.84 (λ*=0.21 **on KN3**) | 92.65 (λ*=0.28) | 54.0 | 22.3 |
+| static-α (6), train-fit | 170.97 | 101.74 | 68.7 | 28.7 |
+| **static-α (6), valid-fit** | **119.14** | **89.71** | 68.7 | 28.7 |
+| router, train-trained (control) | 250.79 (h=256) | 138.19 (h=64) | 68.7 | 28.7 |
+| **router, valid-tuned (h=128 by CV)** | **117.86** | **87.77** | 68.7 | 28.7 |
+| router 3-seed mean ± sd | 118.06 ± 0.29 | 87.84 ± 0.06 | | |
+| router 3-seed ensemble | 117.60 | 87.74 | | |
+| router over 5 stat. experts, valid-tuned | 194.47 | 132.82 | 36.0 | 15.6 |
+| router over 5 stat. experts, train-trained | 481.00 | 226.71 | 36.0 | 15.6 |
+| best single expert (normalized bound) | 146.85 (gru) | 103.01 (gru) | — | — |
+| per-position best expert (**not** normalized) | (57.35) | (44.37) | — | — |
+
+KenLM footprint cells are deliberately empty: this environment has `lmplz` but
+not `build_binary`, so the 53.8/23.1 MB "trie binary" figures recorded in §10
+are not reproducible from the committed code and must not be quoted.
+`kenlm.log` now records the ARPA size instead.
+
+**Verdict (corrected).** The router beats tuned two-expert interpolation by
+13.2% (WT-2) / 5.3% (PTB) and a tuned static 6-expert mixture by 1.1% / 2.2%
+(≈3.7 and ≈32 router-sd). Trained on the training stream instead, it is worse
+than *uniform* mixing (250.8 vs 182.6; 138.2 vs 138.4). The load-bearing
+positive result is the **hybrid**, not the routing: a valid-tuned static
+mixture of five cheap experts + a small GRU beats the GRU alone, tuned
+interpolation and a KenLM 5-gram at 68.7/28.7 MB.
+
+**Protocol rules added (must not drift):**
+1. Router features must be candidate-independent (`gate_lm.FeatMaker`); the
+   mixture must sum to 1 over the vocabulary. Guards:
+   `gate_hybrid.assert_no_label_leak`, `tests/test_gate.py`,
+   `benchmarks/normalization_audit.py`.
+2. Budget matching: λ*, static-α and the router (weights **and** hidden size,
+   by 2-fold CV inside valid) are all tuned on validation only. Train-fit
+   variants are negative controls, never headline rows.
+3. Cost rows quote the **minimum** of ≥5 interleaved rounds, single torch
+   thread, and the harness asserts that no system measures faster than a
+   component it contains.
+4. Corpus stats quoted from the artifacts, not the literature: WT-2 gold
+   streams are 1,927,034 / 201,797 / 226,731 tokens, vocab 28,714 (headers
+   dropped, lowercased, OOV→unk — NOT the commonly quoted 2.0M/214k/245k/33k).
+   PTB: 907,138 / 71,825 / 80,594, vocab 9,644.
+
+**Cost (min of 7 interleaved rounds, 1 torch thread, 200 test sentences).**
+PTB: kn3 0.006 · mixer5 0.018 · router-only 0.479 · gru 2.231 · fixed-λ 2.435 ·
+static6 — · full hybrid 3.427 ms/tok. WT-2: see `benchmarks/results/energy.log`.
+Routing's marginal cost over the *same* six experts mixed statically is the
+router-only row: ~0.44–0.48 ms/token (8–14% of the hybrid). The hybrid vs
+2-expert fixed interpolation gap (+15% WT-2, +41% PTB) is mostly the four extra
+expert evaluations, not the router.
+
+**Selective GRU activation is dead** (v1 claimed 47–55% usage for ≤0.5 PP): the
+corrected router keeps the GRU on for 99.0% (WT-2) / 89.7% (PTB) of tokens even
+at τ=0.5 — the honest router trusts the GRU nearly everywhere.
+
+**Bibliography note:** `paper/submission/` is now GENERATED from
+`paper/main.tex` by `scripts/make_submission.py` (ACL `review` option =
+anonymous + line numbers). The hand-written copy it replaces misattributed
+`mathur2023` ("On-device language modeling", A. Mathur — actually PersonaLM,
+P. Mathur, Findings of EMNLP 2023), `chang2015` ("D. Chang" — actually S. Chang
+et al., ASRU 2015), `mikolov2011` (the RNNLM toolkit instead of the ASRU
+paper), `jelinek1980` (added Mercer) and `chen1999` (wrong journal). Never
+hand-edit the submission copy again.
+
+---
+
+## 1. Verified numbers ledger (WikiText-2) — ⚠️ SUPERSEDED by §0/§12 (router rows invalid)
 
 All rows: word-level perplexity, natural log, one shared gold token stream,
 217,004 aligned test positions, single core, pure-stdlib statistical stack.
@@ -159,7 +245,7 @@ container ~30 min after the editor disconnects):**
   (wired via the devcontainer `postStartCommand`) now relaunches an
   interrupted run automatically whenever the container restarts.
 
-## 4. Protocol & alignment rules (must not drift)
+## 4. Protocol & alignment rules (must not drift) — see §0 for the added invariants
 
 - **Aligned positions:** every word except each sentence-initial word and
   every eos. WT-2 rows: train 1,846,068 · valid 193,222 · test 217,004
@@ -251,7 +337,7 @@ container ~30 min after the editor disconnects):**
   Liveness check: `ps -o pid,etime,time,%cpu -p <pid>` — the TIME column must
   keep growing while disconnected.
 
-## 8. THE MONEY TABLE (Phase 4 verdict, 2026-09-12)
+## 8. THE MONEY TABLE (Phase 4 verdict, 2026-09-12) — ⚠️ INVALIDATED, see §0/§12
 
 WT-2 test, 217,004 aligned positions, gate trained on train (model selection
 on valid); GRU = epoch-11 expert (valid 162.16 / aligned-row table below):
@@ -304,22 +390,42 @@ fix; energy/latency harness. Revisit: the ep25-30 anneal bet is moot for the
 verdict — only worth finishing for camera-ready if a stronger expert is
 wanted (table re-run costs ~40 min via --score-only + gate_hybrid).
 
-## 7. Paper TODO (order matters)
+## 7. Paper TODO (order matters) — ⚠️ re-scoped 2026-09-15 by §0/§12: the
+paper is now an audit + budget-matched negative/positive result, not a "tiny
+router wins by 30%" claim. Venue plan below still holds (ARR Oct 2026 cycle);
+the selling point is the methodological finding plus the corrected two-corpus
+study.
 
-**Publication plan (updated 2026-09-13 after checking live venue pages):**
-EMNLP 2026 workshop deadlines have passed (Insights closed June 8), so the
-short paper goes to the **ARR October 2026 cycle (submission deadline
-October 12, 2026)** → reviews/meta-review by December 23 → commit to
-**NAACL 2027 or COLING 2027** (commitment deadline December 23, 2026; both
-accept 4-page short papers). Extension path unchanged: long paper with
-KenLM + WikiText-103 + transformer expert to **ACL 2027** (ARR January
-2027 cycle), citing the short version. Backup if reviews are weak: **TMLR**
-(rolling, no deadline). Anonymized, line-numbered submission copy lives in
-`paper/submission/` (review mode + masked repo footnote — regenerate from
-`paper/main.tex` after any edit). KenLM baseline DONE pre-submission
-(§10) — removed from the extension list, which is now WikiText-103 +
-transformer expert. Remaining before Oct 12: ARR OpenReview profile
-(moderation queue), responsible-NLP checklist, final proofread.
+
+
+**Publication plan (re-scoped 2026-09-15 after the Phase-8 audit — see §0/§12):**
+
+- **This is a WORKSHOP paper.** Content: the normalization audit
+  (candidate-conditioned gating is not an LM; the 27–33% "win" was deflation) +
+  the corrected budget-matched two-corpus study (routing buys 1.1–2.2% over a
+  tuned static mixture and 5.3–13.2% over two-expert interpolation, at 13–66%
+  extra latency) + the reliability-shift mechanism. Fit: negative-results /
+  methodology / efficient-or-tiny-NLP workshops. **Venue TBD — check live CFPs
+  before committing**; the 2026-09-13 check found EMNLP 2026 workshop deadlines
+  (e.g. Insights, June 8) already closed, so the realistic windows are the next
+  workshop cycle or an ARR short with a workshop commitment.
+- **The conference paper is a DIFFERENT study, not an extension of this table**:
+  compute saving at LLM scale (routing/skipping expensive components, possibly
+  mixing a transformer layer with cheap experts). It must cite this workshop
+  paper and disclose the overlap. Three carry-over obligations from §12: (i) the
+  sum-to-one audit on any gated mixture, (ii) budget-matched baselines — a tuned
+  static mixture, not a single tuned λ, (iii) stationarity of expert reliability
+  between the tuning stream and deployment. Note the honest starting point: at
+  this scale a skip rule on the router's own expensive-expert weight found
+  almost nothing to skip (99.0%/89.7% usage at τ=0.5).
+- Do NOT reuse any v1 number, figure or claim: §1, §8, §9, §10 router rows are
+  invalidated. `paper/main.tex` is the source of truth;
+  `python scripts/make_submission.py` regenerates the anonymized, line-numbered
+  review copy (never hand-edit `paper/submission/`).
+- Remaining before submission: venue + CFP conformance (page limit, anonymity),
+  responsible-NLP checklist, ARR OpenReview profile, final proofread, and one
+  last `bash scripts/run_paper_pipeline.sh {wt2|ptb}` to confirm every quoted
+  number still regenerates.
 
 1. [x] GRU v3 trained/stopped by decision (ep24); expert = ep11 checkpoint
 2. [x] `python nn_expert.py --score-only` — aligned scores, assertions passed
@@ -337,7 +443,7 @@ transformer expert. Remaining before Oct 12: ARR OpenReview profile
        NAACL 2027 or COLING 2027 (Dec 23); extension → ACL 2027 Jan cycle;
        TMLR backup. Anonymized copy ready in `paper/submission/`
 
-## 9. Phase 5 — PTB replication (Mikolov split, COMPLETE)
+## 9. Phase 5 — PTB replication (Mikolov split) — ⚠️ router rows INVALIDATED, see §0/§12
 
 **Purpose:** kill the "WT-2 quirk" objection — does the money-table verdict
 (gate > fixed-λ, hybrid dominates components) replicate on a second corpus?
@@ -411,7 +517,7 @@ sd/ensemble context provided by the audit.
 conference-short path (§5). Remaining: Phase 6 (5-gram fix + energy
 harness), Phase 7 writing per §5 positioning.
 
-## 10. Phase 6 — robustness & cost (COMPLETE, 2026-09-12)
+## 10. Phase 6 — robustness & cost — ⚠️ PARTLY INVALIDATED (gate rows, cost table, selective activation): see §0/§12
 
 **5-gram baseline anomaly RESOLVED:** the original 302.52 row tuned the
 5-gram with discount_scale frozen at 1.0 (3 combos) vs the trigram's
@@ -579,3 +685,116 @@ dblp APIs). Status per claim:
 1. Cite only from the VERIFIED + CANONICAL lists above.
 2. Every citation gets a DOI or arXiv ID in the .bib.
 3. Before submission: batch re-check all DOIs resolve (one curl loop).
+
+## 12. The v1 invalidation — forensic record (2026-09-15)
+
+**How it was found:** a pre-submission accuracy audit of `paper/main.tex`
+against the artifacts. Three checks, in order of damage:
+
+1. `np.array_equal(X[:, :5], L[:, :5])` on every collected split → **True**.
+   `gate_lm.collect()` computed `x[0:5] = log p_i(w_gold)` and then assigned
+   `L[n, 0:5] = x[0:5]`. The router was fed the answer. (`gate_lm.py:6` even
+   asserted "all causal, no leakage".) Feature `[12]` was the gold word's cache
+   count — the same bug one column over.
+2. **Is the mixture a distribution?** For a candidate-conditioned gate,
+   `Z(ctx) = Σ_w Σ_i a_i(x_{ctx,w}) p_i(w|ctx)`. Measured over the full
+   vocabulary with the cache streamed causally: **Z = 2.66 (WT-2)**,
+   **2.56 (PTB)** for the v1 router; **1.000** for KN3, the GRU, fixed-λ and
+   the corrected router. `exp(mean log Z)` is exactly the factor by which the
+   reported perplexity was deflated: 90.28 → ≈240, 68.02 → ≈174.
+3. **Are the baselines tuned the same way?** No: `train_static_alpha` was fit on
+   *train* while λ* and the router's hidden size were selected on *valid*. Fit
+   on valid, the same static mixture goes 170.97 → **119.14** (WT-2) and
+   101.74 → **89.71** (PTB), i.e. the "static mixing fails badly" row was a
+   straw man. (It is not an optimizer bug: EM from four inits converges to the
+   same train-fit α, kn3 .68 / lag3 .09 / gru .22. Train is simply the corpus
+   the GRU memorized — train PP 46.6 vs test 103.0 on PTB.)
+
+**Why nobody caught it earlier:** the loss decreased, validation tracked test,
+three seeds agreed, two corpora replicated, an ensemble helped, and the router
+landed plausibly between the baselines and the "oracle" (which had the same
+defect: its mass is ≈3.1). Every consistency check was internal to the broken
+protocol. Only an external invariant — Σ_w P(w|ctx) = 1 — catches it.
+
+**Secondary errors found in the same audit (all fixed):**
+- `paper/main.tex` claimed fixed interpolation "prefers a more GRU-heavy
+  mixture on PTB (λ*=0.28 vs 0.21)". λ is the weight on **KN3**
+  (`fixed_lambda(i=0, j=5)`: `p = λ·p_kn3 + (1−λ)·p_gru`), so PTB is *less*
+  GRU-heavy. The same inversion was in §9 of this dossier.
+- The paper called the comparison "fixed interpolation **of the same experts**"
+  / "identical experts"; the baseline interpolates 2 of the 6.
+- Table 1's WT-2 column quoted the literature (≈2.0M / 214k / 245k / 33k) rather
+  than the gold streams actually scored (1,927,034 / 201,797 / 226,731 / 28,714;
+  `common.load_wikitext2` drops `= header =` lines and lowercases). PTB was right.
+- The footprint column of the main table used WT-2 sizes for both corpora
+  (PTB: KN3 9.2 MB, GRU 13.1 MB, system 28.7 MB) and omitted the lag/cache/
+  unigram experts (14.6/…MB) that the 6-expert rows need — contradicting the
+  "total footprint 68.7/28.7 MB" sentence in the same paper. Now measured by
+  `benchmarks/footprint_meta.py` into `nn_meta.json`.
+- §3 described the router input as "each expert's vote (top prediction, its
+  probability, and rank statistics)". No rank statistics existed and the GRU's
+  vote was never an input (which the Conclusion relied on). The description now
+  matches `FeatMaker`: 5 confidences + 5 agreement flags + 14 context stats.
+- The intro called the router "one of the largest learnable surface areas"; it
+  is 3.9k parameters against the GRU's 3.3–8.2M.
+- The v1 cost table was physically impossible: GRU alone 5.09 ms/token vs the
+  full hybrid that contains it 3.60 ms/token (CPU time showed the same
+  inversion: 17.1 vs 13.6). Re-timed interleaved, GRU-alone and GRU+KN3+blend
+  are the same within noise. The harness now quotes the minimum of ≥5
+  interleaved rounds on one torch thread and asserts the containment ordering.
+- The "hindsight oracle" was described as "the classic competitor bound
+  (Freund & Schapire; Cesa-Bianchi & Lugosi)" and "no realizable system can
+  beat it". It is the per-position max over experts, which is unnormalized; the
+  Hedge competitor bound is a different (weaker) object. Now reported as a
+  diagnostic and labelled as not achievable.
+- `paper/submission/main.tex` had drifted from `paper/main.tex`: it dropped the
+  ACL template for fontspec/geometry (so: no line numbers, wrong venue format,
+  and it could not even compile with the pdflatex in this image) and replaced
+  `references.bib` with a hand-typed bibliography containing five
+  misattributions (see §0). It is now generated by
+  `scripts/make_submission.py`.
+
+**Code changes (2026-09-15):**
+- `gate_lm.py`: `FeatMaker` — 24 causal, candidate-independent features
+  (5 expert confidences in their own favourites, 5 plurality-agreement flags,
+  14 context statistics incl. two age-invariant cache densities). Dropped the
+  sentence-length and position-fraction features: both need the sentence END,
+  which is future information at scoring time. `--collect` rebuilds the caches.
+- `mixer_lm.py`: `top1()` on every expert (KN3 memoized per bigram context;
+  lag-2/3 from the existing top-16 lists; cache via a lazily-deleted max-heap;
+  unigram leaders cached) + `CacheExpert.clear()`.
+- `gate_hybrid.py`: `assert_no_label_leak()` on load; `fair_router()` (h by
+  2-fold CV inside valid, weights fit on valid); static-α reported train-fit
+  **and** valid-fit; λ printed with its semantics; footprint from
+  `nn_meta.json`; "best single expert" (normalized) added and the per-position
+  max relabelled as unnormalized; verdict compares against the strongest tuned
+  baseline; writes `gate_fair.json` + `gate_fair_h<H>.npz`.
+- `seed_audit.py`: audits the headline (valid-tuned) router and both static
+  rows; the train-trained control is single-seed by design (documented).
+- `benchmarks/energy_harness.py`: `router-only` and `static6` rows, single
+  torch thread, ≥5 interleaved rounds, min-of-rounds, containment assertion.
+- `benchmarks/normalization_audit.py` (new): measures Z over the full
+  vocabulary for the current router and, with `--legacy`, reconstructs the v1
+  leaky features and re-measures the artifact from the archived npz files.
+- `benchmarks/router_diagnostic.py` (new): per-split expert PPs, router PP,
+  the router's own mean weights applied statically, uniform, and both static
+  fits — the mechanism behind the train-trained failure.
+- `benchmarks/footprint_meta.py` (new): one measured source for every footprint.
+- `tests/test_gate.py` (new): features identical for diverging futures; every
+  expert sums to 1; any context-only mixture sums to 1; cache `top1()` matches
+  a rescan; cached npz has no feature/label column identity or near-1
+  correlation.
+- `scripts/run_paper_pipeline.sh` (new): one command per corpus for every
+  router-dependent number. `scripts/make_submission.py` (new): generates the
+  anonymized ACL review copy.
+- Invalidated artifacts + the code revision that produced them (`9d2eac4`) are
+  archived under `benchmarks/results/*/legacy_leaky_v1/` with a README.
+
+**What the paper now claims** (`paper/main.tex`): (1) the audit — a
+candidate-conditioned gate is not an LM, here is the one-line check, and here is
+a 27–33% "win" that was pure deflation; (2) budget-matched, causal per-token
+routing buys 13.2%/5.3% over tuned two-expert interpolation but only 1.1%/2.2%
+over a tuned static mixture of the same experts; (3) train-trained routing is
+worse than uniform mixing, because expert reliability is not stationary
+(`router_diagnostic.py`); (4) the tuned static hybrid is the real small-footprint
+win (119.1/89.7 vs KenLM-5 250.9/138.4 and GRU-alone 146.9/103.0).

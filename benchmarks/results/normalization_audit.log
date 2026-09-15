@@ -1,0 +1,10 @@
+normalization audit — WT-2, causal (context-only) router
+sampled positions                : 150
+reported test PP (all positions) : 117.86
+reported PP on the sample        : 102.41
+mean log Z(ctx) over vocabulary  : +0.0000   (mass x1.000)
+NORMALIZED PP on the sample      : 102.41
+implied deflation of the reported number: x1.00 (normalized = reported x Z)
+a mixture LM must have Z = 1 at every context; Z > 1 means the
+router's weights depend on the word being scored and the perplexity
+is not comparable to a normalized baseline.

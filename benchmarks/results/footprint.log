@@ -1,0 +1,13 @@
+{
+  "corpus": "WT-2",
+  "vocab_gru": 28715,
+  "params": 8169259,
+  "gru_mb_fp32": 32.7,
+  "gru_mb_fp16": 16.3,
+  "trigram_mb": 21.4,
+  "lag2_mb": 6.9,
+  "lag3_mb": 7.4,
+  "cache_uni_mb": 0.3,
+  "statistical_mb": 36.0,
+  "system_mb": 68.7
+}

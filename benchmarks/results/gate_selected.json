@@ -1,0 +1,9 @@
+{
+  "corpus": "WT-2",
+  "h": 256,
+  "kb": 31.0,
+  "valid_pp": 259.13,
+  "test_pp": 250.79,
+  "n_features": 24,
+  "selected_on": "valid"
+}

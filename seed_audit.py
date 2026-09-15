@@ -1,29 +1,35 @@
 """
-seed_audit.py — 3-seed ±sd for the Phase-4 money-table rows (reviewer
-requirement: headline rows need error bars).
+seed_audit.py — 3-seed error bars + ensembles for the headline rows.
 
-Rows audited (EXACT configs from gate_hybrid.py's table):
-  GATE(6), train-trained, h=128, 12 ep, wd=1e-4   (headline row, 90.28 @seed0)
-  GATE(6), valid-trained, h=64, 15 ep             (fair-data control, 77.49 @seed0)
-  static-alpha (6 experts)                        (cheap — full error bars)
+Audited (EXACT configs from gate_hybrid.py's money table):
+  ROUTER, valid-tuned   h from gate_fair.json (2-fold CV on valid), 15 ep
+                        — the headline row: the router gets the same data
+                        budget as every other tuned baseline (validation only)
+  static-alpha (6)      VALID-fit — the strongest fixed-weight baseline
 
-fixed-λ needs no audit (deterministic grid on valid).
+Not audited: the train-trained router. It is a negative control, and its
+instability is already the point — the 4-size sweep in the money table spans
+250.8-263.6 PP on WT-2 (138.2-144.8 on PTB) at a single seed, and auditing
+h=256 three times costs an hour to confirm a row we report as a failure mode.
+fixed-lambda needs no audit (deterministic grid on valid).
 
 Usage:
   python seed_audit.py              # 3 seeds
   python seed_audit.py --seeds 5    # more seeds
 """
 
+import json
 import os
 import sys
+
 import numpy as np
 
-from gate_hybrid import load_split, train_gate, train_static_alpha, nll_pp
+from gate_hybrid import (OUT, load_split, nll_pp, selected_h,
+                         train_gate, train_static_alpha)
 
 
-def audit(name, fit_fn, seeds):
-    pps = []
-    As = []
+def audit(name, fit_fn, Lte, seeds):
+    pps, As = [], []
     for s in range(seeds):
         A = fit_fn(s)
         As.append(A)
@@ -32,11 +38,21 @@ def audit(name, fit_fn, seeds):
         print(f"  [{name}] seed {s}: test PP {pp:.2f}", flush=True)
     m = float(np.mean(pps))
     sd = float(np.std(pps, ddof=1)) if seeds > 1 else 0.0
-    print(f"  => {name}: {m:.2f} ± {sd:.2f} ({seeds} seeds)", flush=True)
+    print(f"  => {name}: {m:.2f} +/- {sd:.2f} ({seeds} seeds)", flush=True)
     if seeds > 1:
         ens = nll_pp(np.mean(As, axis=0), Lte)
-        print(f"  => {name}: {seeds}-gate ENSEMBLE PP {ens:.2f}", flush=True)
+        print(f"  => {name}: {seeds}-router ENSEMBLE PP {ens:.2f}", flush=True)
     return pps
+
+
+def fair_h(default=64):
+    """Hidden size the money table's CV picked (gate_fair.json)."""
+    path = os.path.join(OUT, "gate_fair.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            return int(json.load(f)["h"])
+    env = os.environ.get("HEDGE_GATE_H")
+    return int(env) if env else default
 
 
 if __name__ == "__main__":
@@ -48,26 +64,21 @@ if __name__ == "__main__":
     (Ytr, Ltr), (Yva, Lva), (Yte, Lte) = (data["train"], data["valid"],
                                           data["test"])
     nexp = Ltr.shape[1]
+    h = fair_h()
 
-    print(f"== seed audit: GATE(6) train-trained "
-          f"h={os.environ.get('HEDGE_GATE_H', '128')}, 12 ep ==", flush=True)
-    audit("gate6-train", lambda s: train_gate(
-        Ytr, Ltr, nexp,
-        hidden=int(os.environ.get("HEDGE_GATE_H", "128")),
-        epochs=12, seed=s)[0](Yte), seeds)
+    print(f"== seed audit: ROUTER valid-tuned h={h} (CV-selected), 15 ep ==",
+          flush=True)
+    audit("router-valid", lambda s: train_gate(
+        Yva, Lva, nexp, hidden=h, epochs=15, seed=s)[0](Yte), Lte, seeds)
 
-    print("== seed audit: GATE(6) valid-trained h=64, 15 ep ==", flush=True)
-    audit("gate6-valid", lambda s: train_gate(
-        Yva, Lva, nexp, hidden=64, epochs=15, seed=s)[0](Yte), seeds)
+    print("== seed audit: static-alpha (6 experts, VALID-fit) ==", flush=True)
+    audit("static-alpha-valid", lambda s: np.repeat(
+        train_static_alpha(Lva, nexp, seed=s), len(Yte), 0), Lte, seeds)
 
-    print("== seed audit: static-alpha (6 experts) ==", flush=True)
-    audit("static-alpha", lambda s: np.repeat(
-        train_static_alpha(Ltr, nexp, seed=s), len(Yte), 0), seeds)
+    print("== seed audit: static-alpha (6 experts, train-fit) ==", flush=True)
+    audit("static-alpha-train", lambda s: np.repeat(
+        train_static_alpha(Ltr, nexp, seed=s), len(Yte), 0), Lte, seeds)
 
-    if os.environ.get("HEDGE_RESULTS", "").rstrip("/").endswith("ptb"):
-        print("== anchors (seed 0, ptb money_table.log): gate6-train 78.81 | "
-              "gate6-valid 63.93 | static-alpha 101.74 | fixed-lambda 92.65 ==",
-              flush=True)
-    else:
-        print("== anchors (seed 0, from gate_hybrid table): gate6-train 90.28 | "
-              "gate6-valid 77.49 | static-alpha 170.97 ==", flush=True)
+    print(f"== context: the train-trained router (valid-selected "
+          f"h={selected_h(128)}) is a single-seed negative control; see the "
+          f"4-size sweep in money_table.log ==", flush=True)

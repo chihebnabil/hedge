@@ -1,0 +1,30 @@
+router diagnostic — PTB (cached train-trained gate h=64)
+
+[train] 851,095 positions
+  expert PP      : kn3=34.7  lag2=135.8  cache=1739.4  lag3=177.5  uni=1048.6  gru=46.6
+  uniform alpha  : 46.43
+  static train-fit: 28.41   alpha 0.60 0.00 0.00 0.06 0.00 0.34
+  static valid-fit: 32.65   alpha 0.23 0.01 0.05 0.01 0.01 0.68
+  router PP      : 20.61
+  router's mean alpha used statically: 29.78
+  mean alpha     : kn3=0.451 lag2=0.134 cache=0.000 lag3=0.132 uni=0.000 gru=0.282
+
+[valid] 67,396 positions
+  expert PP      : kn3=178.1  lag2=1335.0  cache=1780.2  lag3=2035.6  uni=1048.7  gru=111.8
+  uniform alpha  : 144.49
+  static train-fit: 107.78   alpha 0.60 0.00 0.00 0.06 0.00 0.34
+  static valid-fit: 93.98   alpha 0.23 0.01 0.05 0.01 0.01 0.68
+  router PP      : 146.76
+  router's mean alpha used statically: 112.34
+  mean alpha     : kn3=0.399 lag2=0.108 cache=0.000 lag3=0.124 uni=0.000 gru=0.370
+
+[test] 75,623 positions
+  expert PP      : kn3=165.1  lag2=1220.3  cache=1615.7  lag3=1879.1  uni=992.0  gru=103.0
+  uniform alpha  : 138.45
+  static train-fit: 101.74   alpha 0.60 0.00 0.00 0.06 0.00 0.34
+  static valid-fit: 89.71   alpha 0.23 0.01 0.05 0.01 0.01 0.68
+  router PP      : 138.19
+  router's mean alpha used statically: 105.40
+  mean alpha     : kn3=0.402 lag2=0.105 cache=0.000 lag3=0.121 uni=0.000 gru=0.371
+
+reading: if 'router PP' >> 'router's mean alpha used statically', the per-context modulation is the problem, not the average trust it learned; compare the expert PP rows across splits to see the reliability shift it memorized.
